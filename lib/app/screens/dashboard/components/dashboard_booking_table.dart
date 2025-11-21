@@ -1,0 +1,1048 @@
+// lib/screens/owner/dashboard/components/dashboard_booking_table.dart
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
+import 'package:kff_owner_admin/app/screens/dashboard/bloc/dashboard_bloc.dart';
+
+class BookingsTable extends StatelessWidget {
+  final List<Map<String, dynamic>> bookings;
+
+  const BookingsTable({Key? key, required this.bookings}) : super(key: key);
+
+  // 💎 ПРЕМИУМ ЦВЕТОВАЯ ПАЛИТРА
+  static const Color primaryColor = Color(
+    0xFF3B4A6B,
+  ); // Глубокий Индиго (Основной)
+  static const Color accentColor = Color(
+    0xFF3ECFBB,
+  ); // Мягкий Бирюзовый (Акцент)
+  static const Color successColor = Color(
+    0xFF10B981,
+  ); // Ярко-зеленый (Оплачено)
+  static const Color warningColor = Color(
+    0xFFF59E0B,
+  ); // Оранжевый (Предоплата/Отмена)
+  static const Color errorColor = Color(0xFFEF4444); // Красный (Не оплачено)
+  static const Color headerBgColor = Color(0xFFF0F4F7); // Светлый фон таблицы
+
+  // --- (Методы _markAsPaid и _cancelBooking остаются без существенных изменений
+  // --- в логике, но используют новую цветовую палитру для кнопок и снекбаров)
+
+  // ✅ ОТМЕТИТЬ КАК ОПЛАЧЕНО (использует новую палитру)
+  Future<void> _markAsPaid(
+    BuildContext context,
+    String bookingId,
+    String? arenaId,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.payment, color: successColor),
+            SizedBox(width: 12),
+            Text(
+              'Подтверждение оплаты',
+              style: TextStyle(
+                color: primaryColor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Отметить это бронирование как полностью оплаченное?',
+          style: TextStyle(fontSize: 16, color: primaryColor),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Отмена', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: successColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            child: const Text(
+              'Подтвердить',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      BlocProvider.of<DashboardBloc>(context)
+        ..add(DashboardMarkBookingAsPaid(bookingId: bookingId));
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 8),
+                const Text('Бронирование отмечено как оплаченное'),
+              ],
+            ),
+            backgroundColor: successColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 8),
+                Text('Ошибка: $e'),
+              ],
+            ),
+            backgroundColor: errorColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  // ✅ ОТМЕНИТЬ БРОНИРОВАНИЕ (использует новую палитру)
+  Future<void> _cancelBooking(
+    BuildContext context,
+    String bookingId,
+    double prepaidAmount,
+    String? arenaId,
+  ) async {
+    final TextEditingController refundController = TextEditingController();
+    final TextEditingController reasonController = TextEditingController();
+
+    refundController.text = prepaidAmount.toStringAsFixed(0);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.cancel, color: errorColor),
+            SizedBox(width: 12),
+            Text(
+              'Отмена бронирования',
+              style: TextStyle(
+                color: primaryColor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: warningColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: warningColor.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.payment, color: warningColor, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Предоплата: ${prepaidAmount.toStringAsFixed(0)} ₸',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: warningColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: refundController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'Сумма возврата клиенту (₸)',
+                  hintText: 'Введите сумму',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.currency_ruble,
+                    color: primaryColor,
+                  ),
+                  helperText: 'Остальное будет удержано',
+                  helperStyle: TextStyle(color: Colors.grey[600]),
+                ),
+                onChanged: (value) {
+                  // Логика обновления
+                },
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: reasonController,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  labelText: 'Причина отмены',
+                  hintText: 'Укажите причину (необязательно)',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.description,
+                    color: primaryColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Отмена', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: errorColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            child: const Text(
+              'Отменить бронирование',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final refundAmount = double.tryParse(refundController.text);
+      final reason = reasonController.text.trim();
+
+      context.read<DashboardBloc>().add(
+        DashboardCancelBooking(
+          bookingId: bookingId,
+          cancellationReason: reason.isEmpty
+              ? 'Отменено администратором'
+              : reason,
+          refundAmount: refundAmount,
+        ),
+      );
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 8),
+                const Text('Бронирование отменено'),
+              ],
+            ),
+            backgroundColor: warningColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 8),
+                Text('Ошибка: $e'),
+              ],
+            ),
+            backgroundColor: errorColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  // ✅ ПОКАЗАТЬ ДЕТАЛИ БРОНИРОВАНИЯ (с новым дизайном и прокруткой)
+  void _showBookingDetails(BuildContext context, Map<String, dynamic> booking) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        // Ограничение по ширине для больших экранов
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 500, maxHeight: 800),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              color: Colors.white,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header с градиентом
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(20),
+                      topRight: Radius.circular(20),
+                    ),
+                    // Красивый градиент
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [primaryColor, primaryColor.withOpacity(0.8)],
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.calendar_today, color: Colors.white),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Бронирование #${booking['id']?.toString().substring(0, 8) ?? 'N/A'}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // ⚠️ Контент с прокруткой
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Основная информация
+                        _buildDetailCard(
+                          'Основная информация',
+                          [
+                            _buildDetailRow('Время', booking['time'] ?? ''),
+                            _buildDetailRow('Арена', booking['arena'] ?? ''),
+                            _buildDetailRow(
+                              'Клиент',
+                              booking['clientName'] ?? '',
+                            ),
+                          ],
+                          Icons.info,
+                          primaryColor,
+                        ),
+                        const SizedBox(height: 16),
+                        // Контактные данные
+                        _buildDetailCard(
+                          'Контактные данные',
+                          [
+                            _buildDetailRow(
+                              'Телефон',
+                              booking['clientPhone'] ?? 'Не указан',
+                              isContact: true,
+                            ),
+                            _buildDetailRow(
+                              'Email',
+                              booking['clientEmail'] ?? 'Не указан',
+                              isContact: true,
+                            ),
+                          ],
+                          Icons.contact_phone,
+                          accentColor,
+                        ),
+                        const SizedBox(height: 16),
+                        // Финансовая информация
+                        _buildDetailCard(
+                          'Финансовая информация',
+                          [
+                            _buildDetailRow(
+                              'Общая сумма',
+                              '${booking['totalPrice']} ₸',
+                              bold: true,
+                              color: primaryColor,
+                            ),
+                            _buildDetailRow(
+                              'Предоплата',
+                              '${booking['prepaidAmount']} ₸',
+                            ),
+                            _buildDetailRow(
+                              'Остаток',
+                              '${booking['remainingAmount']} ₸',
+                            ),
+                          ],
+                          Icons.account_balance_wallet,
+                          warningColor,
+                        ),
+                        const SizedBox(height: 16),
+                        // Статусы
+                        _buildDetailCard(
+                          'Статусы',
+                          [
+                            _buildDetailRow(
+                              'Статус оплаты',
+                              booking['paymentDisplay'] ?? '',
+                              color: _getPaymentColor(booking['paymentStatus']),
+                              bold: true,
+                            ),
+                            _buildDetailRow(
+                              'Статус брони',
+                              booking['status'] ?? '',
+                              color: (booking['status'] == 'CONFIRMED'
+                                  ? successColor
+                                  : primaryColor),
+                            ),
+                          ],
+                          Icons.safety_check,
+                          Colors.purple,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Footer
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: accentColor,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 40,
+                        vertical: 15,
+                      ),
+                    ),
+                    child: const Text(
+                      'Закрыть',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Обновленное оформление карточки деталей
+  Widget _buildDetailCard(
+    String title,
+    List<Widget> children,
+    IconData icon,
+    Color color,
+  ) {
+    return Card(
+      elevation: 4, // Более заметная тень
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: color, size: 22),
+                ),
+                const SizedBox(width: 15),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: primaryColor,
+                    fontSize: 18,
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 25, thickness: 1, color: Color(0xFFE5E7EB)),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Обновленное оформление строки деталей
+  Widget _buildDetailRow(
+    String label,
+    String value, {
+    bool bold = false,
+    Color? color,
+    bool isContact = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            '$label:',
+            style: TextStyle(
+              fontWeight: FontWeight.w500,
+              color: primaryColor.withOpacity(0.7),
+              fontSize: 15,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: GestureDetector(
+              onTap: isContact && value != 'Не указан'
+                  ? () {
+                      // Логика для звонка или отправки почты (если нужно)
+                      // Например, можно использовать url_launcher:
+                      // if (label == 'Телефон') { launchUrl(Uri.parse('tel:$value')); }
+                    }
+                  : null,
+              child: Text(
+                value,
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  fontWeight: bold ? FontWeight.w700 : FontWeight.w600,
+                  color: color ?? primaryColor,
+                  fontSize: 15,
+                  decoration: isContact && value != 'Не указан'
+                      ? TextDecoration.underline
+                      : TextDecoration.none,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getPaymentColor(String? status) {
+    switch (status) {
+      case 'paid':
+        return successColor;
+      case 'prepaid':
+        return warningColor;
+      case 'unpaid':
+        return errorColor;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10), // Больше паддинг
+                  decoration: BoxDecoration(
+                    color: accentColor.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.calendar_today,
+                    color: accentColor,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 15),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Актуальные Бронирования',
+                        style: TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w800,
+                          color: primaryColor,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        bookings.isEmpty
+                            ? 'На сегодня нет активных бронирований'
+                            : 'Управление бронированиями и статусами оплат',
+                        style: TextStyle(
+                          color: primaryColor.withOpacity(0.7),
+                          fontSize: 15,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (bookings.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: primaryColor.withOpacity(0.3)),
+                    ),
+                    child: Text(
+                      '${bookings.length} ${_getBookingCountText(bookings.length)}',
+                      style: const TextStyle(
+                        color: primaryColor,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 30),
+
+            if (bookings.isEmpty)
+              _buildEmptyState()
+            else
+              _buildBookingsTable(context),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Container(
+      padding: const EdgeInsets.all(60),
+      decoration: BoxDecoration(
+        color: headerBgColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(
+              Icons.inbox_outlined, // Другая иконка
+              size: 80,
+              color: primaryColor.withOpacity(0.3),
+            ),
+            const SizedBox(height: 25),
+            const Text(
+              'Нет бронирований на сегодня',
+              style: TextStyle(
+                fontSize: 20,
+                color: primaryColor,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Все новые бронирования будут отображаться здесь автоматически.',
+              style: TextStyle(
+                color: primaryColor.withOpacity(0.6),
+                fontSize: 14,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBookingsTable(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+        color: Colors.white,
+      ),
+      child: Column(
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: headerBgColor, // Светлый фон хедера
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
+              ),
+              border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
+            ),
+            child: Row(
+              children: [
+                _TableSpace(
+                  width: 120,
+                  child: _TableHeaderContent('Время', Icons.access_time),
+                ),
+                _TableSpace(
+                  width: 140,
+                  child: _TableHeaderContent('Объект', Icons.place),
+                ),
+                _TableSpace(
+                  width: 150,
+                  child: _TableHeaderContent('Клиент', Icons.person),
+                ),
+                _TableSpace(
+                  width: 180,
+                  child: _TableHeaderContent('Оплата', Icons.payment),
+                ),
+                _TableSpace(
+                  width: 140,
+                  child: _TableHeaderContent('Контакт', Icons.phone),
+                ),
+                _TableSpace(
+                  width: 200,
+                  child: _TableHeaderContent('Действия', Icons.settings),
+                ),
+              ],
+            ),
+          ),
+
+          // Data Rows
+          ...bookings.asMap().entries.map((entry) {
+            final index = entry.key;
+            final booking = entry.value;
+
+            Color rowColor = index % 2 == 0
+                ? Colors.white
+                : const Color(0xFFFAFAFA); // Чередование цветов
+
+            if (booking['paymentStatus'] == 'prepaid') {
+              rowColor = warningColor.withOpacity(0.08);
+            } else if (booking['paymentStatus'] == 'unpaid') {
+              rowColor = errorColor.withOpacity(0.08);
+            }
+
+            final dateTime = DateTime.parse(booking['startTime']);
+            final formatter = DateFormat('MMMM d', 'ru');
+            String formatted = formatter.format(dateTime);
+
+            // Делаем первую букву заглавной
+            String createdDAy =
+                formatted[0].toUpperCase() + formatted.substring(1);
+
+            return Container(
+              decoration: BoxDecoration(
+                color: rowColor,
+                border: Border(bottom: BorderSide(color: Colors.grey[100]!)),
+              ),
+              child: Row(
+                children: [
+                  _TableSpace(
+                    width: 120,
+                    child: _TableCell(
+                      createdDAy + ' ' + booking['time'] ?? '',
+                      true,
+                    ),
+                  ),
+                  _TableSpace(
+                    width: 140,
+                    child: _TableCell(booking['arena'] ?? '', false),
+                  ),
+                  _TableSpace(
+                    width: 150,
+                    child: _TableCell(booking['clientName'] ?? '', true),
+                  ),
+                  _buildPaymentBadge(
+                    booking['paymentDisplay'] ?? '',
+                    booking['paymentStatus'] ?? 'unpaid',
+                    180,
+                  ),
+                  _TableSpace(
+                    width: 140,
+                    child: _TableCell(
+                      booking['clientPhone'] ?? '',
+                      false,
+                      alignment: TextAlign.right,
+                    ),
+                  ),
+                  _buildActionsCell(context, booking, 200),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  // Вспомогательный виджет для хедера
+  static Widget _TableHeaderContent(String text, IconData icon) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: primaryColor.withOpacity(0.7)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: primaryColor,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Вспомогательный виджет для ячейки
+  static Widget _TableCell(
+    String text,
+    bool bold, {
+    TextAlign alignment = TextAlign.left,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Text(
+        text,
+        textAlign: alignment,
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: bold ? FontWeight.w600 : FontWeight.normal,
+          color: primaryColor,
+        ),
+      ),
+    );
+  }
+
+  // Вспомогательный виджет для ограничения ширины
+  static Widget _TableSpace({required double width, required Widget child}) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+      child: child,
+    );
+  }
+
+  Widget _buildPaymentBadge(String text, String status, double width) {
+    Color bgColor, textColor, iconColor;
+    IconData icon;
+
+    switch (status) {
+      case 'paid':
+        bgColor = successColor.withOpacity(0.1);
+        textColor = successColor;
+        iconColor = successColor;
+        icon = Icons.check_circle;
+        break;
+      case 'prepaid':
+        bgColor = warningColor.withOpacity(0.1);
+        textColor = warningColor;
+        iconColor = warningColor;
+        icon = Icons.payment;
+        break;
+      case 'unpaid':
+        bgColor = errorColor.withOpacity(0.1);
+        textColor = errorColor;
+        iconColor = errorColor;
+        icon = Icons.pending;
+        break;
+      default:
+        bgColor = Colors.grey.withOpacity(0.1);
+        textColor = Colors.grey;
+        iconColor = Colors.grey;
+        icon = Icons.help_outline;
+    }
+
+    return Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: iconColor.withOpacity(0.5), width: 0.5),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: iconColor),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                text,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: textColor,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ✅ ЯЧЕЙКА С ДЕЙСТВИЯМИ (обновленный стиль кнопок)
+  Widget _buildActionsCell(
+    BuildContext context,
+    Map<String, dynamic> booking,
+    double width,
+  ) {
+    final canMarkPaid = booking['canMarkPaid'] ?? false;
+    final canCancel = booking['canCancel'] ?? false;
+    final bookingId = booking['id']?.toString() ?? '';
+    final prepaidAmount = (booking['prepaidAmount'] ?? 0).toDouble();
+    final arenaId = booking['arenaId']?.toString();
+
+    return Container(
+      width: width,
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // ✅ Кнопка "Детали"
+          _buildActionButton(
+            context,
+            Icons.remove_red_eye_outlined,
+            'Детали',
+            primaryColor,
+            () => _showBookingDetails(context, booking),
+          ),
+
+          if (canMarkPaid) const SizedBox(width: 8),
+
+          // ✅ Кнопка "Оплачено"
+          if (canMarkPaid)
+            _buildActionButton(
+              context,
+              Icons.check_circle_outline,
+              'Оплачено',
+              successColor,
+              () => _markAsPaid(context, bookingId, arenaId),
+            ),
+
+          if (canCancel) const SizedBox(width: 8),
+
+          // ✅ Кнопка "Отменить"
+          if (canCancel)
+            _buildActionButton(
+              context,
+              Icons.close_rounded,
+              'Отменить',
+              errorColor,
+              () => _cancelBooking(context, bookingId, prepaidAmount, arenaId),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton(
+    BuildContext context,
+    IconData icon,
+    String tooltip,
+    Color color,
+    VoidCallback onPressed,
+  ) {
+    return Tooltip(
+      message: tooltip,
+      textStyle: const TextStyle(color: Colors.white, fontSize: 12),
+      decoration: BoxDecoration(
+        color: primaryColor,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.05), // Очень легкий фон
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: color.withOpacity(0.1),
+              width: 1.0,
+            ), // Тонкая рамка
+          ),
+          child: Icon(icon, size: 20, color: color), // Иконка с основным цветом
+        ),
+      ),
+    );
+  }
+
+  String _getBookingCountText(int count) {
+    if (count % 10 == 1 && count % 100 != 11) return 'бронирование';
+    if (count % 10 >= 2 &&
+        count % 10 <= 4 &&
+        (count % 100 < 10 || count % 100 >= 20))
+      return 'бронирования';
+    return 'бронирований';
+  }
+}
