@@ -95,28 +95,7 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
     });
 
     // ==================== ПОЛУЧИТЬ БРОНИ ДЛЯ АРЕНЫ ====================
-    on<BookingLoadForArena>((event, emit) async {
-      try {
-        emit(BookingLoading());
 
-        var res = await ApiClient.get('api/bookings/arena/${event.arenaId}');
-        log('Arena bookings response: $res');
-
-        if (res['success'] == true) {
-          final bookingList = res['data'] as List<dynamic>;
-          final List<Map<String, dynamic>> bookings = bookingList
-              .map((e) => e as Map<String, dynamic>)
-              .toList();
-
-          emit(BookingListLoaded(bookings: bookings));
-        } else {
-          emit(BookingError(message: 'Failed to load bookings'));
-        }
-      } catch (e) {
-        log('Error loading bookings: $e');
-        emit(BookingError(message: e.toString()));
-      }
-    });
     on<BookingCancel>((event, emit) async {
       try {
         emit(BookingLoading());
@@ -155,6 +134,34 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
         }
       } catch (e) {
         log('Error: $e');
+        emit(BookingError(message: e.toString()));
+      }
+    });
+    on<BookingGetByPeriod>((event, emit) async {
+      try {
+        emit(BookingLoading());
+
+        var res = await ApiClient.get(
+          'api/bookings/owner/by-period?startDate=${event.startDate}&endDate=${event.endDate}',
+        );
+        log('Bookings by period response: $res');
+
+        if (res['success'] == true) {
+          final data = res['data'];
+
+          emit(
+            BookingsByPeriodLoaded(
+              period: data['period'],
+              statistics: data['statistics'],
+              bookings: List<Map<String, dynamic>>.from(data['bookings'] ?? []),
+              cashbackEnabled: data['cashbackEnabled'] ?? false,
+            ),
+          );
+        } else {
+          emit(BookingError(message: res['message'] ?? 'Ошибка загрузки'));
+        }
+      } catch (e) {
+        log('Error loading bookings by period: $e');
         emit(BookingError(message: e.toString()));
       }
     });

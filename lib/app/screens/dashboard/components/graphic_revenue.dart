@@ -99,8 +99,13 @@ class _RevenueChartState extends State<RevenueChart>
         .map((g) => (g['revenue'] as num).toDouble())
         .fold(0, (a, b) => a + b);
 
-    // ✅ РАЗНИЦА В СУММАХ
+    // ✅ РАЗНИЦА В СУММАХ И ПРОЦЕНТАХ
     final double revenueDifference = totalCurrentRevenue - totalPreviousRevenue;
+    final double revenuePercentChange = totalPreviousRevenue > 0
+        ? ((totalCurrentRevenue - totalPreviousRevenue) /
+                  totalPreviousRevenue) *
+              100
+        : 0;
 
     // ✅ РАСЧЕТ СРЕДНЕГО ДОХОДА
     final double currentAverage = filteredGraphic.isEmpty
@@ -111,7 +116,7 @@ class _RevenueChartState extends State<RevenueChart>
         ? 0
         : totalPreviousRevenue / filteredPreviousGraphic.length;
 
-    // ✅ РАСЧЕТ ПРОЦЕНТА ИЗМЕНЕНИЯ
+    // ✅ РАСЧЕТ ПРОЦЕНТА ИЗМЕНЕНИЯ СРЕДНЕГО
     final double growthPercent = previousAverage > 0
         ? ((currentAverage - previousAverage) / previousAverage) * 100
         : 0;
@@ -170,205 +175,120 @@ class _RevenueChartState extends State<RevenueChart>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ✅ ЗАГОЛОВОК
+              // ✅ ЗАГОЛОВОК С ИНФОРМАЦИОННЫМИ КАРТОЧКАМИ
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Color(0xFF667eea).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      Icons.trending_up_rounded,
-                      color: Color(0xFF667eea),
-                      size: 20,
-                    ),
-                  ),
-                  SizedBox(width: 12),
-                  Text(
-                    'Динамика дохода',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF2D3748),
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 8),
-              Text(
-                'Ежедневный доход за текущий месяц',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey.shade600,
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
-
-              // ✅ КАРТОЧКИ СРАВНЕНИЯ
-              if (previousAverage > 0) ...[
-                SizedBox(height: 16),
-                Row(
-                  children: [
-                    // ПРОЦЕНТ РОСТА
-                    Expanded(
-                      child: Container(
-                        padding: EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: growthPercent >= 0
-                              ? Colors.green.shade50
-                              : Colors.red.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: growthPercent >= 0
-                                ? Colors.green.shade200
-                                : Colors.red.shade200,
-                            width: 1.5,
+                  // ЛЕВАЯ ЧАСТЬ - ЗАГОЛОВОК
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Color(0xFF667eea).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.trending_up_rounded,
+                              color: Color(0xFF667eea),
+                              size: 20,
+                            ),
                           ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  growthPercent >= 0
-                                      ? Icons.trending_up_rounded
-                                      : Icons.trending_down_rounded,
-                                  size: 18,
-                                  color: growthPercent >= 0
-                                      ? Colors.green.shade700
-                                      : Colors.red.shade700,
-                                ),
-                                SizedBox(width: 6),
-                                Text(
-                                  'Рост среднего',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey.shade600,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
+                          SizedBox(width: 12),
+                          Text(
+                            'Динамика дохода',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF2D3748),
                             ),
-                            SizedBox(height: 8),
-                            Text(
-                              '${growthPercent >= 0 ? '+' : ''}${growthPercent.toStringAsFixed(1)}%',
-                              style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w800,
-                                color: growthPercent >= 0
-                                    ? Colors.green.shade700
-                                    : Colors.red.shade700,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              'Средний доход в день',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey.shade500,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                          ],
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Ежедневный доход за текущий месяц',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w400,
                         ),
                       ),
-                    ),
+                    ],
+                  ),
 
-                    SizedBox(width: 12),
-
-                    // РАЗНИЦА В СУММАХ
-                    Expanded(
-                      child: Container(
-                        padding: EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: revenueDifference >= 0
+                  // ПРАВАЯ ЧАСТЬ - КОМПАКТНЫЕ КАРТОЧКИ
+                  if (filteredPreviousGraphic.isNotEmpty)
+                    Row(
+                      children: [
+                        // КАРТОЧКА 2: РАЗНИЦА
+                        _buildCompactCard(
+                          icon: revenueDifference >= 0
+                              ? Icons.add_circle_outline_rounded
+                              : Icons.remove_circle_outline_rounded,
+                          iconColor: revenueDifference >= 0
+                              ? Colors.blue.shade600
+                              : Colors.orange.shade600,
+                          backgroundColor: revenueDifference >= 0
                               ? Colors.blue.shade50
                               : Colors.orange.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: revenueDifference >= 0
-                                ? Colors.blue.shade200
-                                : Colors.orange.shade200,
-                            width: 1.5,
+                          borderColor: revenueDifference >= 0
+                              ? Colors.blue.shade200
+                              : Colors.orange.shade200,
+                          value:
+                              '${revenueDifference >= 0 ? '+' : ''}${(revenueDifference / 1000).toStringAsFixed(0)}k',
+                          label: 'Разница',
+                          valueColor: revenueDifference >= 0
+                              ? Colors.blue.shade700
+                              : Colors.orange.shade700,
+                        ),
+
+                        SizedBox(width: 8),
+
+                        // КАРТОЧКА 3: ОБЩИЙ РОСТ
+                        _buildCompactCard(
+                          icon: revenuePercentChange >= 0
+                              ? Icons.show_chart_rounded
+                              : Icons.trending_down_rounded,
+                          iconColor: revenuePercentChange >= 0
+                              ? Colors.purple.shade600
+                              : Colors.deepOrange.shade600,
+                          backgroundColor: revenuePercentChange >= 0
+                              ? Colors.purple.shade50
+                              : Colors.deepOrange.shade50,
+                          borderColor: revenuePercentChange >= 0
+                              ? Colors.purple.shade200
+                              : Colors.deepOrange.shade200,
+                          value:
+                              '${revenuePercentChange >= 0 ? '+' : ''}${revenuePercentChange.toStringAsFixed(1)}%',
+                          label: 'Общий',
+                          valueColor: revenuePercentChange >= 0
+                              ? Colors.purple.shade700
+                              : Colors.deepOrange.shade700,
+                        ),
+
+                        if (widget.targetRevenue != null) ...[
+                          SizedBox(width: 8),
+                          // КАРТОЧКА 4: ЦЕЛЬ
+                          _buildCompactCard(
+                            icon: Icons.flag_rounded,
+                            iconColor: Colors.green.shade600,
+                            backgroundColor: Colors.green.shade50,
+                            borderColor: Colors.green.shade200,
+                            value:
+                                '${(widget.targetRevenue! / 1000).toStringAsFixed(0)}k',
+                            label: 'Цель',
+                            valueColor: Colors.green.shade700,
                           ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  revenueDifference >= 0
-                                      ? Icons.add_circle_outline_rounded
-                                      : Icons.remove_circle_outline_rounded,
-                                  size: 18,
-                                  color: revenueDifference >= 0
-                                      ? Colors.blue.shade700
-                                      : Colors.orange.shade700,
-                                ),
-                                SizedBox(width: 6),
-                                Text(
-                                  'Разница',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey.shade600,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              '${revenueDifference >= 0 ? '+' : ''}${(revenueDifference / 1000).toStringAsFixed(0)}k ₸',
-                              style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w800,
-                                color: revenueDifference >= 0
-                                    ? Colors.blue.shade700
-                                    : Colors.orange.shade700,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            RichText(
-                              text: TextSpan(
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey.shade500,
-                                  fontWeight: FontWeight.w400,
-                                ),
-                                children: [
-                                  TextSpan(
-                                    text:
-                                        '${(totalPreviousRevenue / 1000).toStringAsFixed(0)}k ',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                  ),
-                                  TextSpan(text: '→ '),
-                                  TextSpan(
-                                    text:
-                                        '${(totalCurrentRevenue / 1000).toStringAsFixed(0)}k ₸',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: revenueDifference >= 0
-                                          ? Colors.blue.shade700
-                                          : Colors.orange.shade700,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                        ],
+                      ],
                     ),
-                  ],
-                ),
-              ],
+                ],
+              ),
 
               SizedBox(height: 24),
 
@@ -516,7 +436,7 @@ class _RevenueChartState extends State<RevenueChart>
                                         barSpot.barIndex == 0);
 
                                 return LineTooltipItem(
-                                  '${flSpot.y.toStringAsFixed(0)}k ₸${isCurrentMonth ? '(тек. месяц)' : ' (пред. месяц)'}',
+                                  '${flSpot.y.toStringAsFixed(0)}k ₸\n${isCurrentMonth ? '(тек. месяц)' : '(пред. месяц)'}',
                                   TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
@@ -679,6 +599,50 @@ class _RevenueChartState extends State<RevenueChart>
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // ✅ МЕТОД ДЛЯ СОЗДАНИЯ КОМПАКТНОЙ КАРТОЧКИ
+  Widget _buildCompactCard({
+    required IconData icon,
+    required Color iconColor,
+    required Color backgroundColor,
+    required Color borderColor,
+    required String value,
+    required String label,
+    required Color valueColor,
+  }) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: borderColor, width: 1.5),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: iconColor),
+          SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: valueColor,
+            ),
+          ),
+          SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 9,
+              color: Colors.grey.shade600,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }

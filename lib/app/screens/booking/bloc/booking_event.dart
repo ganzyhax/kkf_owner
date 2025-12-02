@@ -17,7 +17,7 @@ class BookingCreateOffline extends BookingEvent {
   final String clientPhone;
   final double totalPrice;
   final double prepaidAmount;
-  final bool isFullyPaid; // ✅ Добавлено
+  final bool isFullyPaid;
 
   BookingCreateOffline({
     required this.arenaId,
@@ -27,7 +27,7 @@ class BookingCreateOffline extends BookingEvent {
     required this.clientPhone,
     required this.totalPrice,
     required this.prepaidAmount,
-    required this.isFullyPaid, // ✅ Добавлено
+    required this.isFullyPaid,
   });
 }
 
@@ -36,19 +36,23 @@ final class BookingMarkPaid extends BookingEvent {
   BookingMarkPaid({required this.bookingId});
 }
 
-final class BookingLoadForArena extends BookingEvent {
-  final String arenaId;
-  BookingLoadForArena({required this.arenaId});
-}
 
 class BookingCancel extends BookingEvent {
   final String bookingId;
-  final double refundAmount; // ✅ Сумма возврата (админ указывает)
-  final String? cancellationReason; // ✅ Опциональная причина отмены
+  final double refundAmount;
+  final String? cancellationReason;
 
   BookingCancel({
     required this.bookingId,
     required this.refundAmount,
     this.cancellationReason,
   });
+}
+
+// ✅ ИЗМЕНЕНО: теперь только date (YYYY-MM-DD)
+class BookingGetByPeriod extends BookingEvent {
+  final String startDate; // YYYY-MM-DD
+  final String endDate; // YYYY-MM-DD
+
+  BookingGetByPeriod({required this.startDate, required this.endDate});
 }

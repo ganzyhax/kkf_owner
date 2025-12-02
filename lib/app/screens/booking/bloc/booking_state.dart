@@ -31,3 +31,17 @@ final class BookingError extends BookingState {
   final String message;
   BookingError({required this.message});
 }
+
+final class BookingsByPeriodLoaded extends BookingState {
+  final Map<String, dynamic> period;
+  final Map<String, dynamic> statistics;
+  final List<Map<String, dynamic>> bookings;
+  final bool cashbackEnabled;
+
+  BookingsByPeriodLoaded({
+    required this.period,
+    required this.statistics,
+    required this.bookings,
+    required this.cashbackEnabled,
+  });
+}

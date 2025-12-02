@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kff_owner_admin/app/screens/dashboard/dashboard_screen.dart';
+import 'package:kff_owner_admin/app/screens/login/login_screen.dart';
 import 'package:kff_owner_admin/app/screens/register/bloc/register_bloc.dart';
 import 'package:kff_owner_admin/constants/app_colors.dart';
 
@@ -94,8 +95,15 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
         listener: (context, state) {
           // TODO: implement listener
           if (state is RegisterSuccess) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Аккаунт создан"),
+                duration: Duration(seconds: 2),
+              ),
+            );
+
             Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => DashboardScreen()),
+              MaterialPageRoute(builder: (context) => AdminLoginPage()),
               (Route<dynamic> route) => false,
             );
           }
@@ -148,8 +156,8 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
                                         ),
                                       ],
                                     ),
-                                    child: const Icon(
-                                      Icons.phone_android,
+                                    child: Icon(
+                                      Icons.email_outlined,
                                       size: 64,
                                       color: Colors.white,
                                     ),
@@ -345,7 +353,7 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage>
                                     Navigator.pop(context);
                                   },
                                   child: Text(
-                                    'Изменить номер телефона',
+                                    'Изменить почту',
                                     style: TextStyle(
                                       color: Colors.grey.shade600,
                                       fontWeight: FontWeight.w600,

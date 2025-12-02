@@ -10,25 +10,14 @@ class BookingsTable extends StatelessWidget {
   const BookingsTable({Key? key, required this.bookings}) : super(key: key);
 
   // 💎 ПРЕМИУМ ЦВЕТОВАЯ ПАЛИТРА
-  static const Color primaryColor = Color(
-    0xFF3B4A6B,
-  ); // Глубокий Индиго (Основной)
-  static const Color accentColor = Color(
-    0xFF3ECFBB,
-  ); // Мягкий Бирюзовый (Акцент)
-  static const Color successColor = Color(
-    0xFF10B981,
-  ); // Ярко-зеленый (Оплачено)
-  static const Color warningColor = Color(
-    0xFFF59E0B,
-  ); // Оранжевый (Предоплата/Отмена)
-  static const Color errorColor = Color(0xFFEF4444); // Красный (Не оплачено)
-  static const Color headerBgColor = Color(0xFFF0F4F7); // Светлый фон таблицы
+  static const Color primaryColor = Color(0xFF3B4A6B);
+  static const Color accentColor = Color(0xFF3ECFBB);
+  static const Color successColor = Color(0xFF10B981);
+  static const Color warningColor = Color(0xFFF59E0B);
+  static const Color errorColor = Color(0xFFEF4444);
+  static const Color headerBgColor = Color(0xFFF0F4F7);
 
-  // --- (Методы _markAsPaid и _cancelBooking остаются без существенных изменений
-  // --- в логике, но используют новую цветовую палитру для кнопок и снекбаров)
-
-  // ✅ ОТМЕТИТЬ КАК ОПЛАЧЕНО (использует новую палитру)
+  // ✅ ОТМЕТИТЬ КАК ОПЛАЧЕНО
   Future<void> _markAsPaid(
     BuildContext context,
     String bookingId,
@@ -127,7 +116,7 @@ class BookingsTable extends StatelessWidget {
     }
   }
 
-  // ✅ ОТМЕНИТЬ БРОНИРОВАНИЕ (использует новую палитру)
+  // ✅ ОТМЕНИТЬ БРОНИРОВАНИЕ
   Future<void> _cancelBooking(
     BuildContext context,
     String bookingId,
@@ -147,11 +136,13 @@ class BookingsTable extends StatelessWidget {
           children: [
             Icon(Icons.cancel, color: errorColor),
             SizedBox(width: 12),
-            Text(
-              'Отмена бронирования',
-              style: TextStyle(
-                color: primaryColor,
-                fontWeight: FontWeight.bold,
+            Expanded(
+              child: Text(
+                'Отмена бронирования',
+                style: TextStyle(
+                  color: primaryColor,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],
@@ -172,12 +163,14 @@ class BookingsTable extends StatelessWidget {
                   children: [
                     const Icon(Icons.payment, color: warningColor, size: 20),
                     const SizedBox(width: 8),
-                    Text(
-                      'Предоплата: ${prepaidAmount.toStringAsFixed(0)} ₸',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: warningColor,
+                    Expanded(
+                      child: Text(
+                        'Предоплата: ${prepaidAmount.toStringAsFixed(0)} ₸',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: warningColor,
+                        ),
                       ),
                     ),
                   ],
@@ -200,9 +193,7 @@ class BookingsTable extends StatelessWidget {
                   helperText: 'Остальное будет удержано',
                   helperStyle: TextStyle(color: Colors.grey[600]),
                 ),
-                onChanged: (value) {
-                  // Логика обновления
-                },
+                onChanged: (value) {},
               ),
               const SizedBox(height: 16),
               TextField(
@@ -305,14 +296,21 @@ class BookingsTable extends StatelessWidget {
     }
   }
 
-  // ✅ ПОКАЗАТЬ ДЕТАЛИ БРОНИРОВАНИЯ (с новым дизайном и прокруткой)
+  // ✅ ПОКАЗАТЬ ДЕТАЛИ БРОНИРОВАНИЯ (адаптивно)
   void _showBookingDetails(BuildContext context, Map<String, dynamic> booking) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        // Ограничение по ширине для больших экранов
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 500, maxHeight: 800),
+          constraints: BoxConstraints(
+            maxWidth: isMobile ? screenWidth * 0.95 : 500,
+            maxHeight: isMobile
+                ? MediaQuery.of(context).size.height * 0.9
+                : 800,
+          ),
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
@@ -323,13 +321,12 @@ class BookingsTable extends StatelessWidget {
               children: [
                 // Header с градиентом
                 Container(
-                  padding: const EdgeInsets.all(20),
+                  padding: EdgeInsets.all(isMobile ? 16 : 20),
                   decoration: BoxDecoration(
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(20),
                       topRight: Radius.circular(20),
                     ),
-                    // Красивый градиент
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -338,29 +335,34 @@ class BookingsTable extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.calendar_today, color: Colors.white),
-                      const SizedBox(width: 12),
-                      Text(
-                        'Бронирование #${booking['id']?.toString().substring(0, 8) ?? 'N/A'}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
+                      Icon(
+                        Icons.calendar_today,
+                        color: Colors.white,
+                        size: isMobile ? 20 : 24,
+                      ),
+                      SizedBox(width: isMobile ? 8 : 12),
+                      Expanded(
+                        child: Text(
+                          'Бронирование #${booking['id']?.toString().substring(0, 8) ?? 'N/A'}',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: isMobile ? 18 : 22,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
 
-                // ⚠️ Контент с прокруткой
+                // Контент с прокруткой
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(20),
+                    padding: EdgeInsets.all(isMobile ? 16 : 20),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Основная информация
                         _buildDetailCard(
                           'Основная информация',
                           [
@@ -373,9 +375,9 @@ class BookingsTable extends StatelessWidget {
                           ],
                           Icons.info,
                           primaryColor,
+                          isMobile,
                         ),
-                        const SizedBox(height: 16),
-                        // Контактные данные
+                        SizedBox(height: isMobile ? 12 : 16),
                         _buildDetailCard(
                           'Контактные данные',
                           [
@@ -392,9 +394,9 @@ class BookingsTable extends StatelessWidget {
                           ],
                           Icons.contact_phone,
                           accentColor,
+                          isMobile,
                         ),
-                        const SizedBox(height: 16),
-                        // Финансовая информация
+                        SizedBox(height: isMobile ? 12 : 16),
                         _buildDetailCard(
                           'Финансовая информация',
                           [
@@ -415,9 +417,9 @@ class BookingsTable extends StatelessWidget {
                           ],
                           Icons.account_balance_wallet,
                           warningColor,
+                          isMobile,
                         ),
-                        const SizedBox(height: 16),
-                        // Статусы
+                        SizedBox(height: isMobile ? 12 : 16),
                         _buildDetailCard(
                           'Статусы',
                           [
@@ -437,6 +439,7 @@ class BookingsTable extends StatelessWidget {
                           ],
                           Icons.safety_check,
                           Colors.purple,
+                          isMobile,
                         ),
                       ],
                     ),
@@ -445,24 +448,27 @@ class BookingsTable extends StatelessWidget {
 
                 // Footer
                 Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: accentColor,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  padding: EdgeInsets.all(isMobile ? 16 : 20),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: accentColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isMobile ? 24 : 40,
+                          vertical: isMobile ? 12 : 15,
+                        ),
                       ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 40,
-                        vertical: 15,
-                      ),
-                    ),
-                    child: const Text(
-                      'Закрыть',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
+                      child: const Text(
+                        'Закрыть',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
@@ -475,44 +481,50 @@ class BookingsTable extends StatelessWidget {
     );
   }
 
-  // Обновленное оформление карточки деталей
   Widget _buildDetailCard(
     String title,
     List<Widget> children,
     IconData icon,
     Color color,
+    bool isMobile,
   ) {
     return Card(
-      elevation: 4, // Более заметная тень
+      elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.all(isMobile ? 16 : 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: EdgeInsets.all(isMobile ? 6 : 8),
                   decoration: BoxDecoration(
                     color: color.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(icon, color: color, size: 22),
+                  child: Icon(icon, color: color, size: isMobile ? 18 : 22),
                 ),
-                const SizedBox(width: 15),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: primaryColor,
-                    fontSize: 18,
+                SizedBox(width: isMobile ? 10 : 15),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: primaryColor,
+                      fontSize: isMobile ? 16 : 18,
+                    ),
                   ),
                 ),
               ],
             ),
-            const Divider(height: 25, thickness: 1, color: Color(0xFFE5E7EB)),
+            Divider(
+              height: isMobile ? 20 : 25,
+              thickness: 1,
+              color: const Color(0xFFE5E7EB),
+            ),
             ...children,
           ],
         ),
@@ -520,7 +532,6 @@ class BookingsTable extends StatelessWidget {
     );
   }
 
-  // Обновленное оформление строки деталей
   Widget _buildDetailRow(
     String label,
     String value, {
@@ -532,6 +543,7 @@ class BookingsTable extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             '$label:',
@@ -543,25 +555,16 @@ class BookingsTable extends StatelessWidget {
           ),
           const SizedBox(width: 16),
           Expanded(
-            child: GestureDetector(
-              onTap: isContact && value != 'Не указан'
-                  ? () {
-                      // Логика для звонка или отправки почты (если нужно)
-                      // Например, можно использовать url_launcher:
-                      // if (label == 'Телефон') { launchUrl(Uri.parse('tel:$value')); }
-                    }
-                  : null,
-              child: Text(
-                value,
-                textAlign: TextAlign.right,
-                style: TextStyle(
-                  fontWeight: bold ? FontWeight.w700 : FontWeight.w600,
-                  color: color ?? primaryColor,
-                  fontSize: 15,
-                  decoration: isContact && value != 'Не указан'
-                      ? TextDecoration.underline
-                      : TextDecoration.none,
-                ),
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontWeight: bold ? FontWeight.w700 : FontWeight.w600,
+                color: color ?? primaryColor,
+                fontSize: 15,
+                decoration: isContact && value != 'Не указан'
+                    ? TextDecoration.underline
+                    : TextDecoration.none,
               ),
             ),
           ),
@@ -585,6 +588,11 @@ class BookingsTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Определяем размер экрана
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+    final isTablet = screenWidth >= 600 && screenWidth < 1024;
+
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
@@ -598,77 +606,18 @@ class BookingsTable extends StatelessWidget {
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(isMobile ? 16 : 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10), // Больше паддинг
-                  decoration: BoxDecoration(
-                    color: accentColor.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.calendar_today,
-                    color: accentColor,
-                    size: 22,
-                  ),
-                ),
-                const SizedBox(width: 15),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Актуальные Бронирования',
-                        style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
-                          color: primaryColor,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        bookings.isEmpty
-                            ? 'На сегодня нет активных бронирований'
-                            : 'Управление бронированиями и статусами оплат',
-                        style: TextStyle(
-                          color: primaryColor.withOpacity(0.7),
-                          fontSize: 15,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (bookings.isNotEmpty)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: primaryColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: primaryColor.withOpacity(0.3)),
-                    ),
-                    child: Text(
-                      '${bookings.length} ${_getBookingCountText(bookings.length)}',
-                      style: const TextStyle(
-                        color: primaryColor,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 30),
+            // Header - адаптивный
+            _buildHeader(isMobile, isTablet),
+            SizedBox(height: isMobile ? 20 : 30),
 
             if (bookings.isEmpty)
-              _buildEmptyState()
+              _buildEmptyState(isMobile)
+            else if (isMobile)
+              _buildMobileBookingsList(context)
             else
               _buildBookingsTable(context),
           ],
@@ -677,9 +626,132 @@ class BookingsTable extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyState() {
+  // ✅ Адаптивный Header
+  Widget _buildHeader(bool isMobile, bool isTablet) {
+    if (isMobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: accentColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.calendar_today,
+                  color: accentColor,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Актуальные Бронирования',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: primaryColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            bookings.isEmpty
+                ? 'На сегодня нет активных бронирований'
+                : 'Управление бронированиями',
+            style: TextStyle(
+              color: primaryColor.withOpacity(0.7),
+              fontSize: 13,
+            ),
+          ),
+          if (bookings.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: primaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: primaryColor.withOpacity(0.3)),
+              ),
+              child: Text(
+                '${bookings.length} ${_getBookingCountText(bookings.length)}',
+                style: const TextStyle(
+                  color: primaryColor,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
+        ],
+      );
+    }
+
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: accentColor.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Icon(Icons.calendar_today, color: accentColor, size: 22),
+        ),
+        const SizedBox(width: 15),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Актуальные Бронирования',
+                style: TextStyle(
+                  fontSize: isTablet ? 22 : 26,
+                  fontWeight: FontWeight.w800,
+                  color: primaryColor,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                bookings.isEmpty
+                    ? 'На сегодня нет активных бронирований'
+                    : 'Управление бронированиями и статусами оплат',
+                style: TextStyle(
+                  color: primaryColor.withOpacity(0.7),
+                  fontSize: 15,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (bookings.isNotEmpty)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: primaryColor.withOpacity(0.3)),
+            ),
+            child: Text(
+              '${bookings.length} ${_getBookingCountText(bookings.length)}',
+              style: const TextStyle(
+                color: primaryColor,
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyState(bool isMobile) {
     return Container(
-      padding: const EdgeInsets.all(60),
+      padding: EdgeInsets.all(isMobile ? 40 : 60),
       decoration: BoxDecoration(
         color: headerBgColor,
         borderRadius: BorderRadius.circular(16),
@@ -689,25 +761,25 @@ class BookingsTable extends StatelessWidget {
         child: Column(
           children: [
             Icon(
-              Icons.inbox_outlined, // Другая иконка
-              size: 80,
+              Icons.inbox_outlined,
+              size: isMobile ? 60 : 80,
               color: primaryColor.withOpacity(0.3),
             ),
-            const SizedBox(height: 25),
-            const Text(
+            SizedBox(height: isMobile ? 16 : 25),
+            Text(
               'Нет бронирований на сегодня',
               style: TextStyle(
-                fontSize: 20,
+                fontSize: isMobile ? 18 : 20,
                 color: primaryColor,
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: isMobile ? 4 : 8),
             Text(
               'Все новые бронирования будут отображаться здесь автоматически.',
               style: TextStyle(
                 color: primaryColor.withOpacity(0.6),
-                fontSize: 14,
+                fontSize: isMobile ? 13 : 14,
               ),
               textAlign: TextAlign.center,
             ),
@@ -717,6 +789,218 @@ class BookingsTable extends StatelessWidget {
     );
   }
 
+  // ✅ Mobile: Card List вместо таблицы
+  Widget _buildMobileBookingsList(BuildContext context) {
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: bookings.length,
+      itemBuilder: (context, index) {
+        final booking = bookings[index];
+        final dateTime = DateTime.parse(booking['startTime']);
+        final formatter = DateFormat('MMMM d', 'ru');
+        String formatted = formatter.format(dateTime);
+        String createdDay = formatted[0].toUpperCase() + formatted.substring(1);
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: InkWell(
+            onTap: () => _showBookingDetails(context, booking),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          booking['clientName'] ?? '',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: primaryColor,
+                          ),
+                        ),
+                      ),
+                      _buildPaymentBadgeMobile(
+                        booking['paymentDisplay'] ?? '',
+                        booking['paymentStatus'] ?? 'unpaid',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.access_time,
+                        size: 14,
+                        color: Colors.grey,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$createdDay ${booking['time'] ?? ''}',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.place, size: 14, color: Colors.grey),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          booking['arena'] ?? '',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildMobileActionButton(
+                          context,
+                          Icons.remove_red_eye_outlined,
+                          'Детали',
+                          primaryColor,
+                          () => _showBookingDetails(context, booking),
+                        ),
+                      ),
+                      if (booking['canMarkPaid'] ?? false) ...[
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildMobileActionButton(
+                            context,
+                            Icons.check_circle_outline,
+                            'Оплачено',
+                            successColor,
+                            () => _markAsPaid(
+                              context,
+                              booking['id']?.toString() ?? '',
+                              booking['arenaId']?.toString(),
+                            ),
+                          ),
+                        ),
+                      ],
+                      if (booking['canCancel'] ?? false) ...[
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildMobileActionButton(
+                            context,
+                            Icons.close_rounded,
+                            'Отменить',
+                            errorColor,
+                            () => _cancelBooking(
+                              context,
+                              booking['id']?.toString() ?? '',
+                              (booking['prepaidAmount'] ?? 0).toDouble(),
+                              booking['arenaId']?.toString(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPaymentBadgeMobile(String text, String status) {
+    Color bgColor, textColor, iconColor;
+    IconData icon;
+
+    switch (status) {
+      case 'paid':
+        bgColor = successColor.withOpacity(0.1);
+        textColor = successColor;
+        iconColor = successColor;
+        icon = Icons.check_circle;
+        break;
+      case 'prepaid':
+        bgColor = warningColor.withOpacity(0.1);
+        textColor = warningColor;
+        iconColor = warningColor;
+        icon = Icons.payment;
+        break;
+      case 'unpaid':
+        bgColor = errorColor.withOpacity(0.1);
+        textColor = errorColor;
+        iconColor = errorColor;
+        icon = Icons.pending;
+        break;
+      default:
+        bgColor = Colors.grey.withOpacity(0.1);
+        textColor = Colors.grey;
+        iconColor = Colors.grey;
+        icon = Icons.help_outline;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: iconColor.withOpacity(0.5), width: 0.5),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: iconColor),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: textColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileActionButton(
+    BuildContext context,
+    IconData icon,
+    String label,
+    Color color,
+    VoidCallback onPressed,
+  ) {
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 16),
+      label: Text(label),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: color,
+        side: BorderSide(color: color.withOpacity(0.3)),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
+  // Desktop Table (existing code)
   Widget _buildBookingsTable(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
@@ -726,11 +1010,10 @@ class BookingsTable extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // Header
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: headerBgColor, // Светлый фон хедера
+              color: headerBgColor,
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(12),
                 topRight: Radius.circular(12),
@@ -766,15 +1049,13 @@ class BookingsTable extends StatelessWidget {
               ],
             ),
           ),
-
-          // Data Rows
           ...bookings.asMap().entries.map((entry) {
             final index = entry.key;
             final booking = entry.value;
 
             Color rowColor = index % 2 == 0
                 ? Colors.white
-                : const Color(0xFFFAFAFA); // Чередование цветов
+                : const Color(0xFFFAFAFA);
 
             if (booking['paymentStatus'] == 'prepaid') {
               rowColor = warningColor.withOpacity(0.08);
@@ -785,9 +1066,7 @@ class BookingsTable extends StatelessWidget {
             final dateTime = DateTime.parse(booking['startTime']);
             final formatter = DateFormat('MMMM d', 'ru');
             String formatted = formatter.format(dateTime);
-
-            // Делаем первую букву заглавной
-            String createdDAy =
+            String createdDay =
                 formatted[0].toUpperCase() + formatted.substring(1);
 
             return Container(
@@ -800,7 +1079,7 @@ class BookingsTable extends StatelessWidget {
                   _TableSpace(
                     width: 120,
                     child: _TableCell(
-                      createdDAy + ' ' + booking['time'] ?? '',
+                      createdDay + ' ' + (booking['time'] ?? ''),
                       true,
                     ),
                   ),
@@ -835,7 +1114,6 @@ class BookingsTable extends StatelessWidget {
     );
   }
 
-  // Вспомогательный виджет для хедера
   static Widget _TableHeaderContent(String text, IconData icon) {
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -857,7 +1135,6 @@ class BookingsTable extends StatelessWidget {
     );
   }
 
-  // Вспомогательный виджет для ячейки
   static Widget _TableCell(
     String text,
     bool bold, {
@@ -877,7 +1154,6 @@ class BookingsTable extends StatelessWidget {
     );
   }
 
-  // Вспомогательный виджет для ограничения ширины
   static Widget _TableSpace({required double width, required Widget child}) {
     return Container(
       width: width,
@@ -948,7 +1224,6 @@ class BookingsTable extends StatelessWidget {
     );
   }
 
-  // ✅ ЯЧЕЙКА С ДЕЙСТВИЯМИ (обновленный стиль кнопок)
   Widget _buildActionsCell(
     BuildContext context,
     Map<String, dynamic> booking,
@@ -966,7 +1241,6 @@ class BookingsTable extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ✅ Кнопка "Детали"
           _buildActionButton(
             context,
             Icons.remove_red_eye_outlined,
@@ -974,10 +1248,7 @@ class BookingsTable extends StatelessWidget {
             primaryColor,
             () => _showBookingDetails(context, booking),
           ),
-
           if (canMarkPaid) const SizedBox(width: 8),
-
-          // ✅ Кнопка "Оплачено"
           if (canMarkPaid)
             _buildActionButton(
               context,
@@ -986,10 +1257,7 @@ class BookingsTable extends StatelessWidget {
               successColor,
               () => _markAsPaid(context, bookingId, arenaId),
             ),
-
           if (canCancel) const SizedBox(width: 8),
-
-          // ✅ Кнопка "Отменить"
           if (canCancel)
             _buildActionButton(
               context,
@@ -1024,14 +1292,11 @@ class BookingsTable extends StatelessWidget {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: color.withOpacity(0.05), // Очень легкий фон
+            color: color.withOpacity(0.05),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: color.withOpacity(0.1),
-              width: 1.0,
-            ), // Тонкая рамка
+            border: Border.all(color: color.withOpacity(0.1), width: 1.0),
           ),
-          child: Icon(icon, size: 20, color: color), // Иконка с основным цветом
+          child: Icon(icon, size: 20, color: color),
         ),
       ),
     );

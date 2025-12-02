@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:kff_owner_admin/app/screens/booking/booking_page.dart';
 import 'package:kff_owner_admin/app/screens/finance/finance_screen.dart';
 import 'package:kff_owner_admin/app/screens/my_arena/my_arena_screen.dart';
+import 'package:kff_owner_admin/app/screens/review/review_screen.dart';
 import 'package:kff_owner_admin/app/utils/local_utils.dart';
 import 'dashboard/dashboard_screen.dart';
 
@@ -32,7 +33,7 @@ class _OwnerLayoutState extends State<OwnerLayout> {
       appBar: isMobile
           ? AppBar(
               title: const Text('Панель Владельца'),
-              backgroundColor: const Color(0xFF1F2937),
+              backgroundColor: Colors.white,
             )
           : null,
       body: Row(
@@ -73,7 +74,7 @@ class _OwnerLayoutState extends State<OwnerLayout> {
       case 'finance':
         return FinanceDashboard();
       case 'feedback':
-        return _buildPlaceholder('Отзывы и Рейтинг', Icons.comment);
+        return ReviewScreen();
       default:
         return const DashboardScreen();
     }

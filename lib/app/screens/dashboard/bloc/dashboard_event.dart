@@ -47,3 +47,17 @@ class DashboardLoadForDate extends DashboardEvent {
 
   DashboardLoadForDate({required this.selectedDate, this.arenaId});
 }
+
+class DashboardLoadWithComparison extends DashboardEvent {
+  final String period; // 'today', 'this_week', 'this_month', 'last_month'
+  final String? arenaId;
+  final DateTime? startDate;
+  final DateTime? endDate;
+
+  DashboardLoadWithComparison({
+    required this.period,
+    this.arenaId,
+    this.startDate,
+    this.endDate,
+  });
+}

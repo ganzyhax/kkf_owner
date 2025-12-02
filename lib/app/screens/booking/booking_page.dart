@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
+import 'dart:html' as html;
+import 'package:kff_owner_admin/app/screens/booking/components/booking_list_widget.dart';
+import 'package:kff_owner_admin/app/screens/booking/components/offline_booking_dialog.dart';
 import 'package:kff_owner_admin/app/screens/my_arena/bloc/my_arena_bloc.dart';
 import 'package:kff_owner_admin/app/screens/booking/bloc/booking_bloc.dart';
-import 'package:kff_owner_admin/app/screens/booking/components/arena_selector.dart';
-import 'package:kff_owner_admin/app/screens/booking/components/date_picker.dart';
-import 'package:kff_owner_admin/app/screens/booking/components/offline_booking_form.dart';
-import 'package:kff_owner_admin/app/screens/booking/components/time_slots_grid.dart';
 
 class BookingPage extends StatelessWidget {
   const BookingPage({super.key});
@@ -30,186 +30,202 @@ class _BookingPageContent extends StatefulWidget {
 }
 
 class _BookingPageContentState extends State<_BookingPageContent> {
-  List<int> selectedHours = [];
-  DateTime selectedDate = DateTime.now();
-  String? selectedArenaId;
-
-  void onSlotSelected(List<int> newSelection) {
-    setState(() => selectedHours = newSelection);
-  }
-
-  void onDateChanged(DateTime newDate) {
-    setState(() {
-      selectedDate = newDate;
-      selectedHours = [];
-    });
-  }
-
-  void onArenaChanged(String? arenaId) {
-    setState(() {
-      selectedArenaId = arenaId;
-      selectedHours = [];
-    });
+  void _showOfflineBookingDialog() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => MultiBlocProvider(
+        providers: [
+          BlocProvider.value(value: context.read<BookingBloc>()),
+          BlocProvider.value(value: context.read<MyArenaBloc>()),
+        ],
+        child: const OfflineBookingDialog(),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final canBook = selectedHours.length >= 2 && selectedArenaId != null;
+    // Get screen size for responsive design
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+    final isTablet = screenWidth >= 600 && screenWidth < 1024;
+    final isDesktop = screenWidth >= 1024;
+
+    // Responsive padding
+    final horizontalPadding = isMobile ? 16.0 : (isTablet ? 20.0 : 24.0);
+    final verticalPadding = isMobile ? 16.0 : 24.0;
+
+    // Responsive font sizes
+    final titleFontSize = isMobile ? 22.0 : (isTablet ? 26.0 : 28.0);
+    final subtitleFontSize = isMobile ? 13.0 : (isTablet ? 14.0 : 15.0);
+    final buttonFontSize = isMobile ? 14.0 : 16.0;
+
+    // Responsive button padding
+    final buttonHorizontalPadding = isMobile ? 16.0 : 24.0;
+    final buttonVerticalPadding = isMobile ? 12.0 : 16.0;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8FC),
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1400),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Управление Бронированиями (Календарь)',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Выберите арену, дату и минимум 2 часа подряд для оффлайн бронирования.',
-                      style: TextStyle(color: Colors.black54, fontSize: 15),
-                    ),
-                    const SizedBox(height: 24),
+        child: BlocListener<BookingBloc, BookingState>(
+          listener: (context, state) {
+            if (state is BookingSuccess) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(state.message),
+                  backgroundColor: Colors.green,
+                  behavior: SnackBarBehavior.floating,
+                  margin: EdgeInsets.all(isMobile ? 8 : 16),
+                ),
+              );
+              final now = DateTime.now();
 
-                    BlocBuilder<MyArenaBloc, MyArenaState>(
-                      builder: (context, arenaState) {
-                        Map<String, dynamic>? selectedArena;
-                        if (arenaState is MyArenaLoaded &&
-                            selectedArenaId != null) {
-                          try {
-                            selectedArena = arenaState.arenas.firstWhere(
-                              (arena) => arena['_id'] == selectedArenaId,
-                            );
-                          } catch (e) {
-                            print('Arena not found: $e');
-                          }
-                        }
+              final startDate = DateTime(now.year, now.month, 1);
+              final endDate = DateTime(now.year, now.month + 1, 0);
 
-                        return LayoutBuilder(
-                          builder: (context, constraints) {
-                            final isWide = constraints.maxWidth > 900;
-                            return isWide
-                                ? Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Expanded(
-                                        flex: 1,
-                                        child: Column(
-                                          children: [
-                                            ArenaSelector(
-                                              onArenaChanged: onArenaChanged,
-                                            ),
-                                            const SizedBox(height: 24),
-                                            DatePickerWidget(
-                                              selectedDate: selectedDate,
-                                              onDateChanged: onDateChanged,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(width: 24),
-                                      Expanded(
-                                        flex: 2,
-                                        child: Column(
-                                          children: [
-                                            if (selectedArenaId != null)
-                                              TimeSlotsGrid(
-                                                selectedDate: selectedDate,
-                                                arenaId: selectedArenaId!,
-                                                onSelectionChanged:
-                                                    onSlotSelected,
-                                              )
-                                            else
-                                              Container(
-                                                padding: const EdgeInsets.all(
-                                                  48,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.white,
-                                                  borderRadius:
-                                                      BorderRadius.circular(12),
-                                                ),
-                                                child: const Center(
-                                                  child: Text(
-                                                    'Выберите арену',
-                                                    style: TextStyle(
-                                                      fontSize: 18,
-                                                      color: Colors.grey,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            const SizedBox(height: 24),
-                                            if (selectedArenaId != null)
-                                              OfflineBookingForm(
-                                                canBook: canBook,
-                                                arenaId: selectedArenaId!,
-                                                selectedDate: selectedDate,
-                                                selectedHours: selectedHours,
-                                                arena: selectedArena,
-                                              ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  )
-                                : Column(
-                                    children: [
-                                      ArenaSelector(
-                                        onArenaChanged: onArenaChanged,
-                                      ),
-                                      const SizedBox(height: 24),
-                                      DatePickerWidget(
-                                        selectedDate: selectedDate,
-                                        onDateChanged: onDateChanged,
-                                      ),
-                                      const SizedBox(height: 24),
-                                      if (selectedArenaId != null) ...[
-                                        TimeSlotsGrid(
-                                          selectedDate: selectedDate,
-                                          arenaId: selectedArenaId!,
-                                          onSelectionChanged: onSlotSelected,
-                                        ),
-                                        const SizedBox(height: 24),
-                                        OfflineBookingForm(
-                                          canBook: canBook,
-                                          arenaId: selectedArenaId!,
-                                          selectedDate: selectedDate,
-                                          selectedHours: selectedHours,
-                                          arena: selectedArena,
-                                        ),
-                                      ] else
-                                        Container(
-                                          padding: const EdgeInsets.all(48),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white,
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                          ),
-                                          child: const Center(
-                                            child: Text('Выберите арену'),
-                                          ),
-                                        ),
-                                    ],
-                                  );
-                          },
-                        );
-                      },
-                    ),
-                  ],
+              final startStr = DateFormat('yyyy-MM-dd').format(startDate);
+              final endStr = DateFormat('yyyy-MM-dd').format(endDate);
+
+              context.read<BookingBloc>().add(
+                BookingGetByPeriod(startDate: startStr, endDate: endStr),
+              );
+            } else if (state is BookingError) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(state.message),
+                  backgroundColor: Colors.red,
+                  behavior: SnackBarBehavior.floating,
+                  margin: EdgeInsets.all(isMobile ? 8 : 16),
+                ),
+              );
+            }
+          },
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: horizontalPadding,
+                vertical: verticalPadding,
+              ),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1400),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Adaptive header with button
+                      if (isMobile)
+                        // Mobile layout: Stack vertically
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Управление Бронированиями',
+                                  style: TextStyle(
+                                    fontSize: titleFontSize,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Просмотр и создание бронирований',
+                                  style: TextStyle(
+                                    color: Colors.black54,
+                                    fontSize: subtitleFontSize,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            // Full-width button on mobile
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: _showOfflineBookingDialog,
+                                icon: const Icon(
+                                  Icons.add_circle_outline,
+                                  size: 20,
+                                ),
+                                label: const Text('Создать бронь'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue,
+                                  foregroundColor: Colors.white,
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: buttonHorizontalPadding,
+                                    vertical: buttonVerticalPadding,
+                                  ),
+                                  textStyle: TextStyle(
+                                    fontSize: buttonFontSize,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      else
+                        // Tablet & Desktop layout: Side by side
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Управление Бронированиями',
+                                    style: TextStyle(
+                                      fontSize: titleFontSize,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Просмотр и создание бронирований',
+                                    style: TextStyle(
+                                      color: Colors.black54,
+                                      fontSize: subtitleFontSize,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            ElevatedButton.icon(
+                              onPressed: _showOfflineBookingDialog,
+                              icon: const Icon(Icons.add_circle_outline),
+                              label: const Text('Создать бронь'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue,
+                                foregroundColor: Colors.white,
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: buttonHorizontalPadding,
+                                  vertical: buttonVerticalPadding,
+                                ),
+                                textStyle: TextStyle(
+                                  fontSize: buttonFontSize,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                      SizedBox(height: isMobile ? 20 : 24),
+
+                      // Bookings overview widget
+                      const BookingsOverviewWidget(),
+                    ],
+                  ),
                 ),
               ),
             ),
