@@ -1,5 +1,4 @@
 // lib/screens/finance/finance_dashboard.dart
-import 'dart:developer';
 import 'dart:html' as html;
 
 import 'package:flutter/material.dart';
@@ -7,6 +6,20 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:kff_owner_admin/app/screens/finance/bloc/finance_bloc.dart';
 import 'package:excel/excel.dart' hide Border;
+
+// ✅ ENUM ДЛЯ РЕЖИМОВ ПРОСМОТРА
+enum TransactionViewMode {
+  byBooking, // По бронированиям
+  byPayment, // По платежам
+}
+
+// ✅ ENUM ДЛЯ ФИЛЬТРОВ
+enum PaymentStatusFilter {
+  all, // Все
+  paid, // Оплачено
+  partial, // Частично
+  unpaid, // Не оплачено
+}
 
 class FinanceDashboard extends StatelessWidget {
   const FinanceDashboard({super.key});
@@ -41,6 +54,10 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
   String searchQuery = '';
   String sortOption = 'dateDesc';
   String? selectedArenaId;
+
+  // ✅ НОВЫЕ СОСТОЯНИЯ
+  TransactionViewMode _viewMode = TransactionViewMode.byBooking;
+  PaymentStatusFilter _statusFilter = PaymentStatusFilter.all;
 
   void _loadData() {
     context.read<FinanceBloc>().add(
@@ -402,7 +419,6 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
     );
   }
 
-  // Функция экспорта в Excel
   Future<void> _exportToExcel(
     List<Map<String, dynamic>> transactions,
     Map<String, dynamic> summary,
@@ -411,12 +427,10 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
       var excel = Excel.createExcel();
       Sheet sheetObject = excel['Финансы'];
 
-      // Удаляем дефолтный лист
       if (excel.sheets.containsKey('Sheet1')) {
         excel.delete('Sheet1');
       }
 
-      // Стили
       CellStyle headerStyle = CellStyle(
         bold: true,
         fontSize: 12,
@@ -432,7 +446,6 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
 
       CellStyle titleStyleCell = CellStyle(bold: true, fontSize: 14);
 
-      // Заголовок документа
       var titleCell = sheetObject.cell(CellIndex.indexByString('A1'));
       titleCell.value = TextCellValue('Финансовый отчет');
       titleCell.cellStyle = titleStyleCell;
@@ -442,7 +455,6 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
         'Период: ${DateFormat('dd.MM.yyyy').format(startDate)} - ${DateFormat('dd.MM.yyyy').format(endDate)}',
       );
 
-      // Статистика - Основные показатели
       sheetObject.cell(CellIndex.indexByString('A4')).value = TextCellValue(
         'ОСНОВНЫЕ ПОКАЗАТЕЛИ',
       );
@@ -480,7 +492,6 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
         '${summary['netRevenue'] ?? 0} ₸',
       );
 
-      // Бронирования
       sheetObject.cell(CellIndex.indexByString('A10')).value = TextCellValue(
         'БРОНИРОВАНИЯ',
       );
@@ -510,7 +521,6 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
         '${summary['offlineBookings'] ?? 0}',
       );
 
-      // Комиссия
       sheetObject.cell(CellIndex.indexByString('A15')).value = TextCellValue(
         'КОМИССИЯ',
       );
@@ -538,7 +548,6 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
         '$avgCheck ₸',
       );
 
-      // Заголовки таблицы транзакций
       List<String> headers = [
         '№',
         'Дата',
@@ -558,7 +567,6 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
         cell.cellStyle = headerStyle;
       }
 
-      // Данные транзакций
       for (int i = 0; i < transactions.length; i++) {
         final transaction = transactions[i];
         final rowIndex = i + 20;
@@ -568,7 +576,6 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
             ? DateTime.tryParse(dateStr) ?? DateTime.now()
             : DateTime.now();
 
-        // №
         sheetObject
             .cell(
               CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex),
@@ -577,7 +584,6 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
           '${i + 1}',
         );
 
-        // Дата
         sheetObject
             .cell(
               CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex),
@@ -586,7 +592,6 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
           DateFormat('dd.MM.yyyy').format(date),
         );
 
-        // Время начала
         sheetObject
             .cell(
               CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex),
@@ -595,7 +600,6 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
           transaction['startTime']?.toString() ?? '',
         );
 
-        // Время окончания
         sheetObject
             .cell(
               CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex),
@@ -604,7 +608,6 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
           transaction['endTime']?.toString() ?? '',
         );
 
-        // Клиент
         sheetObject
             .cell(
               CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowIndex),
@@ -613,7 +616,6 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
           transaction['clientName']?.toString() ?? 'N/A',
         );
 
-        // Арена
         sheetObject
             .cell(
               CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: rowIndex),
@@ -622,7 +624,6 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
           transaction['arena']?.toString() ?? 'N/A',
         );
 
-        // Сумма
         sheetObject
             .cell(
               CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: rowIndex),
@@ -631,7 +632,6 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
           '${transaction['amount'] ?? 0}',
         );
 
-        // Тип оплаты
         String paymentType = transaction['paymentType'] == 'online'
             ? 'Онлайн'
             : 'Оффлайн';
@@ -644,7 +644,6 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
         );
       }
 
-      // Сохранение файла
       var fileBytes = excel.encode();
 
       if (fileBytes != null) {
@@ -660,7 +659,6 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
           ..click();
         html.Url.revokeObjectUrl(url);
 
-        // Показать уведомление об успехе
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -673,7 +671,6 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
       }
     } catch (e) {
       print('Error exporting to Excel: $e');
-      // Показать ошибку
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -779,6 +776,13 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
                                 isDesktop,
                                 summary,
                               ),
+                              _buildCancellationsRow(
+                                isMobile,
+                                isTablet,
+                                isDesktop,
+                                summary,
+                              ), // ✅ ДОБАВЬ
+
                               SizedBox(height: isMobile ? 16 : 24),
                               _buildBookingsRow(
                                 isMobile,
@@ -786,13 +790,16 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
                                 isDesktop,
                                 summary,
                               ),
-                              SizedBox(height: isMobile ? 16 : 24),
+                              SizedBox(
+                                height: isMobile ? 20 : (isTablet ? 28 : 32),
+                              ),
                               _buildCommissionRow(
                                 isMobile,
                                 isTablet,
                                 isDesktop,
                                 summary,
                               ),
+
                               SizedBox(
                                 height: isMobile ? 20 : (isTablet ? 28 : 32),
                               ),
@@ -950,7 +957,6 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
     );
   }
 
-  // Остальные методы остаются без изменений...
   Widget _buildMainRevenueRow(
     bool isMobile,
     bool isTablet,
@@ -1052,7 +1058,451 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
       },
     ];
 
-    return _buildCardRow(isMobile, isTablet, isDesktop, cards);
+    return Column(
+      children: [
+        _buildCardRow(isMobile, isTablet, isDesktop, cards),
+        SizedBox(height: isMobile ? 16 : 24),
+        _buildPaymentBreakdown(isMobile, isTablet, s),
+      ],
+    );
+  }
+
+  Widget _buildPaymentBreakdown(
+    bool isMobile,
+    bool isTablet,
+    Map<String, dynamic> summary,
+  ) {
+    final paymentBreakdown =
+        summary['paymentBreakdown'] as Map<String, dynamic>? ?? {};
+
+    final online = paymentBreakdown['online'] as num? ?? 0;
+    final cash = paymentBreakdown['cash'] as num? ?? 0;
+    final kaspi = paymentBreakdown['kaspi'] as num? ?? 0;
+    final halyk = paymentBreakdown['halyk'] as num? ?? 0;
+    final bcc = paymentBreakdown['bcc'] as num? ?? 0;
+    final forte = paymentBreakdown['forte'] as num? ?? 0;
+    final rbk = paymentBreakdown['rbk'] as num? ?? 0;
+    final jusan = paymentBreakdown['jusan'] as num? ?? 0;
+    final bereke = paymentBreakdown['bereke'] as num? ?? 0;
+
+    final onlineTotal = online;
+    final offlineTotal =
+        cash + kaspi + halyk + bcc + forte + rbk + jusan + bereke;
+    final grandTotal = onlineTotal + offlineTotal;
+
+    if (grandTotal == 0) return const SizedBox.shrink();
+
+    return Container(
+      padding: EdgeInsets.all(isMobile ? 16 : 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(isMobile ? 12 : 16),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.account_balance_wallet_rounded,
+                  color: Colors.blue.shade600,
+                  size: isMobile ? 18 : 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Детализация платежей',
+                      style: TextStyle(
+                        fontSize: isMobile ? 14 : 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade800,
+                      ),
+                    ),
+                    Text(
+                      'Распределение по каналам',
+                      style: TextStyle(
+                        fontSize: isMobile ? 11 : 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: isMobile ? 16 : 20),
+          if (isMobile)
+            Column(
+              children: [
+                if (onlineTotal > 0)
+                  _buildChannelCard(
+                    'Через платформу',
+                    onlineTotal,
+                    Colors.blue,
+                    Icons.language,
+                    isMobile,
+                    null,
+                  ),
+                if (onlineTotal > 0 && offlineTotal > 0)
+                  const SizedBox(height: 12),
+                if (offlineTotal > 0)
+                  _buildChannelCard(
+                    'Вне платформы',
+                    offlineTotal,
+                    Colors.orange,
+                    Icons.storefront,
+                    isMobile,
+                    _buildOfflineBreakdown(
+                      cash,
+                      kaspi,
+                      halyk,
+                      bcc,
+                      forte,
+                      rbk,
+                      jusan,
+                      bereke,
+                      isMobile,
+                    ),
+                  ),
+              ],
+            )
+          else
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (onlineTotal > 0) ...[
+                  Expanded(
+                    child: _buildChannelCard(
+                      'Через платформу',
+                      onlineTotal,
+                      Colors.blue,
+                      Icons.language,
+                      isMobile,
+                      null,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                ],
+                if (offlineTotal > 0)
+                  Expanded(
+                    child: _buildChannelCard(
+                      'Вне платформы',
+                      offlineTotal,
+                      Colors.orange,
+                      Icons.storefront,
+                      isMobile,
+                      _buildOfflineBreakdown(
+                        cash,
+                        kaspi,
+                        halyk,
+                        bcc,
+                        forte,
+                        rbk,
+                        jusan,
+                        bereke,
+                        isMobile,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChannelCard(
+    String label,
+    num amount,
+    Color color,
+    IconData icon,
+    bool isMobile,
+    Widget? details,
+  ) {
+    return Container(
+      padding: EdgeInsets.all(isMobile ? 14 : 16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3), width: 2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: color, size: isMobile ? 20 : 24),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: isMobile ? 12 : 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _formatCurrency(amount),
+                      style: TextStyle(
+                        fontSize: isMobile ? 18 : 20,
+                        fontWeight: FontWeight.bold,
+                        color: color,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (details != null) ...[
+            SizedBox(height: isMobile ? 12 : 16),
+            const Divider(),
+            SizedBox(height: isMobile ? 8 : 12),
+            details,
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOfflineBreakdown(
+    num cash,
+    num kaspi,
+    num halyk,
+    num bcc,
+    num forte,
+    num rbk,
+    num jusan,
+    num bereke,
+    bool isMobile,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Методы оплаты:',
+          style: TextStyle(
+            fontSize: isMobile ? 11 : 12,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey.shade600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (cash > 0) ...[
+          _buildPaymentMethodRow(
+            'Наличные',
+            cash,
+            Colors.green,
+            Icons.money,
+            isMobile,
+          ),
+          const SizedBox(height: 6),
+        ],
+        if (kaspi > 0 ||
+            halyk > 0 ||
+            bcc > 0 ||
+            forte > 0 ||
+            rbk > 0 ||
+            jusan > 0 ||
+            bereke > 0)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (cash > 0) ...[
+                Padding(
+                  padding: EdgeInsets.symmetric(vertical: isMobile ? 4 : 6),
+                  child: Text(
+                    'Переводы:',
+                    style: TextStyle(
+                      fontSize: isMobile ? 10 : 11,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey.shade500,
+                    ),
+                  ),
+                ),
+              ],
+              Wrap(
+                spacing: isMobile ? 6 : 8,
+                runSpacing: isMobile ? 6 : 8,
+                children: [
+                  if (kaspi > 0)
+                    _buildBankChip('Kaspi', kaspi, Colors.red, isMobile),
+                  if (halyk > 0)
+                    _buildBankChip('Halyk', halyk, Colors.blue, isMobile),
+                  if (bcc > 0)
+                    _buildBankChip('БЦК', bcc, Colors.orange, isMobile),
+                  if (forte > 0)
+                    _buildBankChip('Forte', forte, Colors.purple, isMobile),
+                  if (rbk > 0)
+                    _buildBankChip('RBK', rbk, Colors.indigo, isMobile),
+                  if (jusan > 0)
+                    _buildBankChip('Jusan', jusan, Colors.teal, isMobile),
+                  if (bereke > 0)
+                    _buildBankChip('Bereke', bereke, Colors.amber, isMobile),
+                ],
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+
+  Widget _buildCancellationsRow(
+    bool isMobile,
+    bool isTablet,
+    bool isDesktop,
+    Map<String, dynamic> s,
+  ) {
+    final cancelledRetained = s['cancelledRetained'] ?? 0;
+
+    // Если нет отмен с удержанием, не показываем
+    if (cancelledRetained == 0) return const SizedBox.shrink();
+
+    final cards = [
+      {
+        'label': 'Удержано при отменах',
+        'value': cancelledRetained,
+        'color': Colors.orange.shade700,
+        'icon': Icons.cancel_presentation_rounded,
+        'subtitle': 'Не возвращено клиентам',
+      },
+    ];
+
+    return Column(
+      children: [
+        SizedBox(height: isMobile ? 16 : 24),
+        _buildCardRow(isMobile, isTablet, isDesktop, cards),
+      ],
+    );
+  }
+
+  Widget _buildPaymentMethodRow(
+    String label,
+    num amount,
+    Color color,
+    IconData icon,
+    bool isMobile,
+  ) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Icon(icon, color: color, size: isMobile ? 14 : 16),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: isMobile ? 11 : 12,
+            fontWeight: FontWeight.w500,
+            color: Colors.grey.shade700,
+          ),
+        ),
+        const Spacer(),
+        Text(
+          _formatCurrency(amount, withSign: false),
+          style: TextStyle(
+            fontSize: isMobile ? 12 : 13,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        Text(
+          ' ₸',
+          style: TextStyle(
+            fontSize: isMobile ? 10 : 11,
+            color: Colors.grey.shade600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBankChip(String bank, num amount, Color color, bool isMobile) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 10 : 12,
+        vertical: isMobile ? 6 : 8,
+      ),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: isMobile ? 6 : 8,
+            height: isMobile ? 6 : 8,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          SizedBox(width: isMobile ? 6 : 8),
+          Text(
+            bank,
+            style: TextStyle(
+              fontSize: isMobile ? 11 : 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade700,
+            ),
+          ),
+          SizedBox(width: isMobile ? 4 : 6),
+          Text(
+            NumberFormat('#,###').format(amount),
+            style: TextStyle(
+              fontSize: isMobile ? 11 : 12,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          Text(
+            ' ₸',
+            style: TextStyle(
+              fontSize: isMobile ? 10 : 11,
+              color: Colors.grey.shade600,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildCardRow(
@@ -1062,7 +1512,6 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
     List<Map<String, dynamic>> cards,
   ) {
     if (isMobile) {
-      // Mobile: 2 columns grid
       return Column(
         children: [
           for (var i = 0; i < cards.length; i += 2)
@@ -1105,7 +1554,6 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
         ],
       );
     } else if (isTablet && cards.length > 3) {
-      // Tablet: 2x2 grid for 4 cards, single row for 2-3 cards
       return Column(
         children: [
           Row(
@@ -1151,7 +1599,6 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
         ],
       );
     } else {
-      // Desktop or Tablet with <= 3 cards: Single row
       return Row(
         children: cards.map((card) {
           return Expanded(
@@ -1271,6 +1718,25 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
     List<Map<String, dynamic>> transactions,
     Map<String, dynamic> summary,
   ) {
+    List<Map<String, dynamic>> filteredTransactions = transactions;
+
+    if (_statusFilter != PaymentStatusFilter.all) {
+      filteredTransactions = transactions.where((t) {
+        final paymentStatus = t['paymentStatus']?.toString() ?? 'Unpaid';
+
+        switch (_statusFilter) {
+          case PaymentStatusFilter.paid:
+            return paymentStatus == 'FullyPaid';
+          case PaymentStatusFilter.partial:
+            return paymentStatus == 'PartiallyPaid';
+          case PaymentStatusFilter.unpaid:
+            return paymentStatus == 'Unpaid';
+          default:
+            return true;
+        }
+      }).toList();
+    }
+
     return Container(
       padding: EdgeInsets.all(isMobile ? 16 : (isTablet ? 20 : 24)),
       decoration: BoxDecoration(
@@ -1288,148 +1754,15 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header section - responsive
-          isMobile
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Транзакции',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey.shade800,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: InkWell(
-                            onTap: () =>
-                                _showCompactDatePicker(context, isMobile),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 10,
-                              ),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey.shade300),
-                                borderRadius: BorderRadius.circular(8),
-                                color: Colors.grey.shade50,
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.calendar_today,
-                                    size: 14,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      '${DateFormat('dd.MM.yy').format(startDate)} - ${DateFormat('dd.MM.yy').format(endDate)}',
-                                      style: TextStyle(
-                                        color: Colors.grey.shade800,
-                                        fontWeight: FontWeight.w500,
-                                        fontSize: 11,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  Icon(
-                                    Icons.arrow_drop_down,
-                                    size: 16,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          icon: Icon(
-                            Icons.file_download,
-                            color: Colors.green.shade600,
-                            size: 20,
-                          ),
-                          onPressed: () =>
-                              _exportToExcel(transactions, summary),
-                          tooltip: 'Экспорт в Excel',
-                        ),
-                      ],
-                    ),
-                  ],
-                )
-              : Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Транзакции',
-                      style: TextStyle(
-                        fontSize: isTablet ? 22 : 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey.shade800,
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: Icon(
-                            Icons.file_download,
-                            color: Colors.green.shade600,
-                          ),
-                          onPressed: () =>
-                              _exportToExcel(transactions, summary),
-                          tooltip: 'Экспорт в Excel',
-                        ),
-                        const SizedBox(width: 8),
-                        InkWell(
-                          onTap: () =>
-                              _showCompactDatePicker(context, isMobile),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey.shade300),
-                              borderRadius: BorderRadius.circular(8),
-                              color: Colors.grey.shade50,
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.calendar_today,
-                                  size: 16,
-                                  color: Colors.grey.shade600,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  '${DateFormat('dd.MM.yyyy').format(startDate)} - ${DateFormat('dd.MM.yyyy').format(endDate)}',
-                                  style: TextStyle(
-                                    color: Colors.grey.shade800,
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                Icon(
-                                  Icons.arrow_drop_down,
-                                  size: 16,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+          _buildTransactionsHeader(
+            context,
+            isMobile,
+            isTablet,
+            transactions,
+            summary,
+          ),
+          SizedBox(height: isMobile ? 12 : 16),
+          _buildFilters(isMobile),
           SizedBox(height: isMobile ? 12 : 16),
           TextField(
             onChanged: (value) {
@@ -1450,38 +1783,331 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
             style: TextStyle(fontSize: isMobile ? 14 : 16),
           ),
           SizedBox(height: isMobile ? 20 : 24),
-          if (transactions.isEmpty)
-            Center(
-              child: Padding(
-                padding: EdgeInsets.all(isMobile ? 32.0 : 48.0),
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.inbox_outlined,
-                      size: isMobile ? 48 : 64,
-                      color: Colors.grey.shade400,
-                    ),
-                    SizedBox(height: isMobile ? 12 : 16),
-                    Text(
-                      'Транзакции не найдены',
-                      style: TextStyle(
-                        fontSize: isMobile ? 16 : 18,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            )
+          if (filteredTransactions.isEmpty)
+            _buildEmptyState(isMobile)
+          else if (_viewMode == TransactionViewMode.byBooking)
+            _buildTransactionsByBooking(isMobile, filteredTransactions)
           else
-            _buildTransactionsList(isMobile, transactions),
+            _buildTransactionsByPayment(isMobile, filteredTransactions),
         ],
       ),
     );
   }
 
-  Widget _buildTransactionsList(
+  Widget _buildTransactionsHeader(
+    BuildContext context,
+    bool isMobile,
+    bool isTablet,
+    List<Map<String, dynamic>> transactions,
+    Map<String, dynamic> summary,
+  ) {
+    if (isMobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Транзакции',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey.shade800,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildViewModeToggle(isMobile),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: InkWell(
+                  onTap: () => _showCompactDatePicker(context, isMobile),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(8),
+                      color: Colors.grey.shade50,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.calendar_today,
+                          size: 14,
+                          color: Colors.grey.shade600,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '${DateFormat('dd.MM.yy').format(startDate)} - ${DateFormat('dd.MM.yy').format(endDate)}',
+                            style: TextStyle(
+                              color: Colors.grey.shade800,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 11,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Icon(
+                          Icons.arrow_drop_down,
+                          size: 16,
+                          color: Colors.grey.shade600,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: Icon(
+                  Icons.file_download,
+                  color: Colors.green.shade600,
+                  size: 20,
+                ),
+                onPressed: () => _exportToExcel(transactions, summary),
+                tooltip: 'Экспорт в Excel',
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Транзакции',
+              style: TextStyle(
+                fontSize: isTablet ? 22 : 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade800,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _buildViewModeToggle(isMobile),
+          ],
+        ),
+        Row(
+          children: [
+            IconButton(
+              icon: Icon(Icons.file_download, color: Colors.green.shade600),
+              onPressed: () => _exportToExcel(transactions, summary),
+              tooltip: 'Экспорт в Excel',
+            ),
+            const SizedBox(width: 8),
+            InkWell(
+              onTap: () => _showCompactDatePicker(context, isMobile),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(8),
+                  color: Colors.grey.shade50,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.calendar_today,
+                      size: 16,
+                      color: Colors.grey.shade600,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${DateFormat('dd.MM.yyyy').format(startDate)} - ${DateFormat('dd.MM.yyyy').format(endDate)}',
+                      style: TextStyle(
+                        color: Colors.grey.shade800,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.arrow_drop_down,
+                      size: 16,
+                      color: Colors.grey.shade600,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildViewModeToggle(bool isMobile) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildViewModeButton(
+            'По бронированиям',
+            Icons.calendar_today,
+            TransactionViewMode.byBooking,
+            isMobile,
+          ),
+          const SizedBox(width: 4),
+          _buildViewModeButton(
+            'По платежам',
+            Icons.payments,
+            TransactionViewMode.byPayment,
+            isMobile,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildViewModeButton(
+    String label,
+    IconData icon,
+    TransactionViewMode mode,
+    bool isMobile,
+  ) {
+    final isActive = _viewMode == mode;
+
+    return InkWell(
+      onTap: () => setState(() => _viewMode = mode),
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: isMobile ? 12 : 16,
+          vertical: isMobile ? 8 : 10,
+        ),
+        decoration: BoxDecoration(
+          color: isActive ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          boxShadow: isActive
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: isMobile ? 16 : 18,
+              color: isActive ? Colors.blue : Colors.grey.shade600,
+            ),
+            SizedBox(width: isMobile ? 6 : 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: isMobile ? 12 : 13,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                color: isActive ? Colors.blue : Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilters(bool isMobile) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        _buildFilterChip(
+          'Все',
+          PaymentStatusFilter.all,
+          Icons.all_inclusive,
+          isMobile,
+        ),
+        _buildFilterChip(
+          'Оплачено',
+          PaymentStatusFilter.paid,
+          Icons.check_circle,
+          isMobile,
+        ),
+        _buildFilterChip(
+          'Частично',
+          PaymentStatusFilter.partial,
+          Icons.payment,
+          isMobile,
+        ),
+        _buildFilterChip(
+          'Не оплачено',
+          PaymentStatusFilter.unpaid,
+          Icons.schedule,
+          isMobile,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFilterChip(
+    String label,
+    PaymentStatusFilter filter,
+    IconData icon,
+    bool isMobile,
+  ) {
+    final isActive = _statusFilter == filter;
+
+    return InkWell(
+      onTap: () => setState(() => _statusFilter = filter),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: isMobile ? 12 : 14,
+          vertical: isMobile ? 6 : 8,
+        ),
+        decoration: BoxDecoration(
+          color: isActive ? Colors.blue.shade50 : Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isActive ? Colors.blue.shade300 : Colors.grey.shade300,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: isMobile ? 14 : 16,
+              color: isActive ? Colors.blue.shade700 : Colors.grey.shade600,
+            ),
+            SizedBox(width: isMobile ? 4 : 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: isMobile ? 11 : 12,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                color: isActive ? Colors.blue.shade700 : Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTransactionsByBooking(
     bool isMobile,
     List<Map<String, dynamic>> transactions,
   ) {
@@ -1489,78 +2115,809 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: transactions.length,
-      separatorBuilder: (context, index) => const Divider(),
+      separatorBuilder: (context, index) => SizedBox(height: isMobile ? 8 : 12),
       itemBuilder: (context, index) {
-        final transaction = transactions[index];
-        final dateStr = transaction['date']?.toString() ?? '';
-        final date = dateStr.isNotEmpty
-            ? DateTime.tryParse(dateStr) ?? DateTime.now()
-            : DateTime.now();
+        return _buildBookingCard(transactions[index], isMobile);
+      },
+    );
+  }
 
-        return ListTile(
-          contentPadding: EdgeInsets.symmetric(
-            horizontal: isMobile ? 0 : 16,
-            vertical: isMobile ? 4 : 8,
+  Widget _buildTransactionsByPayment(
+    bool isMobile,
+    List<Map<String, dynamic>> transactions,
+  ) {
+    final allPayments = <Map<String, dynamic>>[];
+
+    for (var transaction in transactions) {
+      final paymentHistory =
+          transaction['paymentHistory'] as List<dynamic>? ?? [];
+
+      for (var i = 0; i < paymentHistory.length; i++) {
+        final payment = paymentHistory[i] as Map<String, dynamic>;
+
+        allPayments.add({
+          'amount': payment['amount'] ?? 0,
+          'method': payment['method'] ?? 'Cash',
+          'paidAt': payment['paidAt'],
+          'arenaName': transaction['arena'] ?? 'N/A',
+          'clientName': transaction['clientName'] ?? 'N/A',
+          'phone': transaction['phone'] ?? 'Не указан',
+          'startTime': transaction['startTime'] ?? '',
+          'endTime': transaction['endTime'] ?? '',
+          'isOffline': transaction['paymentType'] == 'offline',
+          'paymentType': _getPaymentType(
+            i,
+            paymentHistory.length,
+            transaction,
+          ), // ✅ ИСПРАВЛЕНО
+          'booking': transaction, // ✅ ДОБАВЬ ЭТО для использования в карточке
+        });
+      }
+    }
+
+    allPayments.sort((a, b) {
+      final dateA = a['paidAt'] as String? ?? '';
+      final dateB = b['paidAt'] as String? ?? '';
+      return dateB.compareTo(dateA);
+    });
+
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: allPayments.length,
+      separatorBuilder: (context, index) => SizedBox(height: isMobile ? 8 : 12),
+      itemBuilder: (context, index) {
+        return _buildPaymentCard(allPayments[index], isMobile);
+      },
+    );
+  }
+
+  Widget _buildBookingCard(Map<String, dynamic> booking, bool isMobile) {
+    final arenaName = booking['arena'] ?? 'N/A';
+    final clientName = booking['clientName'] ?? 'N/A';
+    final phone = booking['phone'] ?? 'Не указан';
+
+    // ✅ КРАСИВАЯ ДАТА
+    final dateStr = booking['date']?.toString() ?? '';
+    String formattedDate = '';
+    if (dateStr.isNotEmpty) {
+      try {
+        final date = DateTime.parse(dateStr);
+        formattedDate = DateFormat('dd MMMM yyyy', 'ru').format(date);
+      } catch (e) {
+        formattedDate = dateStr;
+      }
+    }
+
+    final startTime = booking['startTime'] ?? '';
+    final endTime = booking['endTime'] ?? '';
+    final amount = booking['amount'] ?? 0;
+    final totalPrice = booking['totalPrice'] ?? 0;
+    final prepaidAmount = booking['prepaidAmount'] ?? 0;
+    final remainingAmount = booking['remainingAmount'] ?? 0;
+    final paymentStatus = booking['paymentStatus'] ?? 'Unpaid';
+    final bookingStatus = booking['bookingStatus'] ?? 'Pending';
+    final paymentType = booking['paymentType'] == 'online'
+        ? 'Онлайн'
+        : 'Оффлайн';
+
+    // Определяем статус и цвет
+    Color statusColor;
+    String statusText;
+    IconData statusIcon;
+
+    if (bookingStatus == 'Completed') {
+      statusColor = Colors.green;
+      statusText = 'Завершено';
+      statusIcon = Icons.check_circle;
+    } else if (bookingStatus == 'Cancelled') {
+      statusColor = Colors.red;
+      statusText = 'Отменено';
+      statusIcon = Icons.cancel;
+    } else if (paymentStatus == 'PartiallyPaid') {
+      statusColor = Colors.orange;
+      statusText = 'Частично оплачено';
+      statusIcon = Icons.payment;
+    } else if (paymentStatus == 'FullyPaid') {
+      statusColor = Colors.green;
+      statusText = 'Оплачено';
+      statusIcon = Icons.check_circle;
+    } else {
+      statusColor = Colors.blue;
+      statusText = 'В ожидании';
+      statusIcon = Icons.schedule;
+    }
+
+    return Container(
+      padding: EdgeInsets.all(isMobile ? 12 : 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
           ),
-          leading: CircleAvatar(
-            radius: isMobile ? 18 : 20,
-            backgroundColor: (transaction['paymentType'] == 'online')
-                ? Colors.blue.shade50
-                : Colors.orange.shade50,
-            child: Icon(
-              transaction['paymentType'] == 'online'
-                  ? Icons.credit_card
-                  : Icons.storefront,
-              color: (transaction['paymentType'] == 'online')
-                  ? Colors.blue.shade600
-                  : Colors.orange.shade600,
-              size: isMobile ? 16 : 20,
-            ),
-          ),
-          title: Text(
-            transaction['clientName']?.toString() ?? 'N/A',
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: isMobile ? 14 : 16,
-            ),
-          ),
-          subtitle: Text(
-            '${transaction['arena'] ?? 'N/A'} • ${DateFormat('dd.MM.yyyy').format(date)}\n${transaction['startTime'] ?? ''} - ${transaction['endTime'] ?? ''}',
-            style: TextStyle(fontSize: isMobile ? 12 : 14),
-          ),
-          trailing: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.end,
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ✅ HEADER: Арена + Тип брони
+          Row(
             children: [
-              Text(
-                _formatCurrency(transaction['amount']),
-                style: TextStyle(
-                  fontSize: isMobile ? 14 : 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green.shade700,
+              Container(
+                padding: EdgeInsets.all(isMobile ? 6 : 8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.stadium,
+                  color: Colors.blue,
+                  size: isMobile ? 18 : 20,
                 ),
               ),
-              Text(
-                transaction['paymentType'] == 'online' ? 'Онлайн' : 'Оффлайн',
-                style: TextStyle(
-                  color: Colors.grey.shade500,
-                  fontSize: isMobile ? 11 : 12,
+              SizedBox(width: isMobile ? 8 : 12),
+              Expanded(
+                child: Text(
+                  arenaName,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: isMobile ? 14 : 16,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: booking['paymentType'] == 'online'
+                      ? Colors.purple.shade50
+                      : Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  paymentType,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: booking['paymentType'] == 'online'
+                        ? Colors.purple
+                        : Colors.grey.shade700,
+                  ),
                 ),
               ),
             ],
           ),
-          isThreeLine: true,
-        );
-      },
+
+          SizedBox(height: isMobile ? 10 : 12),
+          const Divider(height: 1),
+          SizedBox(height: isMobile ? 10 : 12),
+
+          // ✅ ИНФОРМАЦИЯ О КЛИЕНТЕ
+          Row(
+            children: [
+              Icon(
+                Icons.person_outline,
+                size: isMobile ? 16 : 18,
+                color: Colors.grey.shade600,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      clientName,
+                      style: TextStyle(
+                        fontSize: isMobile ? 13 : 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    // ✅ ТЕЛЕФОН
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.phone_outlined,
+                          size: isMobile ? 12 : 14,
+                          color: Colors.grey.shade500,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          phone,
+                          style: TextStyle(
+                            fontSize: isMobile ? 11 : 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          SizedBox(height: isMobile ? 8 : 10),
+
+          // ✅ ДАТА И ВРЕМЯ
+          Row(
+            children: [
+              Icon(
+                Icons.calendar_today_outlined,
+                size: isMobile ? 14 : 16,
+                color: Colors.grey.shade600,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      formattedDate,
+                      style: TextStyle(
+                        fontSize: isMobile ? 12 : 13,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$startTime - $endTime',
+                      style: TextStyle(
+                        fontSize: isMobile ? 11 : 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          SizedBox(height: isMobile ? 10 : 12),
+          const Divider(height: 1),
+          SizedBox(height: isMobile ? 10 : 12),
+
+          // ✅ СТАТУС И СУММА
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    statusIcon,
+                    size: isMobile ? 14 : 16,
+                    color: statusColor,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    statusText,
+                    style: TextStyle(
+                      color: statusColor,
+                      fontSize: isMobile ? 12 : 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    _formatCurrency(totalPrice),
+                    style: TextStyle(
+                      fontSize: isMobile ? 16 : 18,
+                      fontWeight: FontWeight.bold,
+                      color: statusColor,
+                    ),
+                  ),
+                  if (remainingAmount > 0) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      'Осталось: ${_formatCurrency(remainingAmount)}',
+                      style: TextStyle(
+                        fontSize: isMobile ? 10 : 11,
+                        color: Colors.red.shade600,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+
+          // ✅ ИСТОРИЯ ПЛАТЕЖЕЙ (если есть)
+          if ((booking['paymentHistory'] as List<dynamic>?)?.isNotEmpty ??
+              false) ...[
+            SizedBox(height: isMobile ? 10 : 12),
+            const Divider(height: 1),
+            SizedBox(height: isMobile ? 8 : 10),
+            _buildPaymentHistory(
+              booking['paymentHistory'] as List<dynamic>,
+              isMobile,
+              booking, // ✅ ДОБАВЬ
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentHistory(
+    List<dynamic> paymentHistory,
+    bool isMobile,
+    Map<String, dynamic> booking, // ✅ ДОБАВЬ ПАРАМЕТР
+  ) {
+    final methodColors = {
+      'Online': Colors.blue,
+      'Cash': Colors.green,
+      'Kaspi': Colors.red,
+      'Halyk': Colors.blue,
+      'BCC': Colors.orange,
+      'Forte': Colors.purple,
+      'RBK': Colors.indigo,
+      'Jusan': Colors.teal,
+      'Bereke': Colors.amber,
+    };
+
+    final methodNames = {
+      'Online': 'Онлайн',
+      'Cash': 'Наличные',
+      'Kaspi': 'Kaspi',
+      'Halyk': 'Halyk',
+      'BCC': 'БЦК',
+      'Forte': 'Forte',
+      'RBK': 'RBK',
+      'Jusan': 'Jusan',
+      'Bereke': 'Bereke',
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'История оплаты:',
+          style: TextStyle(
+            fontSize: isMobile ? 11 : 12,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey.shade600,
+          ),
+        ),
+        const SizedBox(height: 6),
+        ...paymentHistory.asMap().entries.map((entry) {
+          final index = entry.key;
+          final payment = entry.value as Map<String, dynamic>;
+
+          final amount = payment['amount'] ?? 0;
+          final method = payment['method'] as String? ?? 'Cash';
+          final methodName = methodNames[method] ?? method;
+          final methodColor = methodColors[method] ?? Colors.grey;
+
+          // ✅ ИСПОЛЬЗУЕМ ФУНКЦИЮ
+          String paymentType = _getPaymentType(
+            index,
+            paymentHistory.length,
+            booking,
+          );
+
+          // Дата платежа
+          final paidAt = payment['paidAt'] as String? ?? '';
+          String formattedDateTime = '';
+          if (paidAt.isNotEmpty) {
+            try {
+              final dt = DateTime.parse(paidAt);
+              formattedDateTime = DateFormat(
+                'dd MMM yyyy, HH:mm',
+                'ru',
+              ).format(dt);
+            } catch (e) {
+              formattedDateTime = paidAt;
+            }
+          }
+
+          return Padding(
+            padding: EdgeInsets.only(bottom: isMobile ? 6 : 8),
+            child: Row(
+              children: [
+                // Иконка
+                Container(
+                  padding: EdgeInsets.all(isMobile ? 5 : 6),
+                  decoration: BoxDecoration(
+                    color: methodColor.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Icon(
+                    _getPaymentIcon(method),
+                    color: methodColor,
+                    size: isMobile ? 12 : 14,
+                  ),
+                ),
+                SizedBox(width: isMobile ? 8 : 10),
+
+                // Информация
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '$paymentType • $methodName',
+                        style: TextStyle(
+                          fontSize: isMobile ? 11 : 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade800,
+                        ),
+                      ),
+                      if (formattedDateTime.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          formattedDateTime,
+                          style: TextStyle(
+                            fontSize: isMobile ? 9 : 10,
+                            color: Colors.grey.shade500,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                // Сумма
+                Text(
+                  _formatCurrency(amount),
+                  style: TextStyle(
+                    fontSize: isMobile ? 12 : 13,
+                    fontWeight: FontWeight.bold,
+                    color: methodColor,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ],
+    );
+  }
+
+  Widget _buildPaymentCard(Map<String, dynamic> payment, bool isMobile) {
+    final amount = payment['amount'] ?? 0;
+    final method = payment['method'] as String? ?? 'Cash';
+    final paidAt = payment['paidAt'] as String? ?? '';
+    final arenaName = payment['arenaName'] as String? ?? 'N/A';
+    final clientName = payment['clientName'] as String? ?? 'N/A';
+    final phone = payment['phone'] as String? ?? 'Не указан'; // ✅ ДОБАВИЛИ
+    final startTime = payment['startTime'] as String? ?? '';
+    final endTime = payment['endTime'] as String? ?? '';
+    final paymentType = payment['paymentType'] as String? ?? 'Платеж';
+    final isOffline = payment['isOffline'] as bool? ?? false;
+
+    final methodColors = {
+      'Online': Colors.blue,
+      'Cash': Colors.green,
+      'Kaspi': Colors.red,
+      'Halyk': Colors.blue,
+      'BCC': Colors.orange,
+      'Forte': Colors.purple,
+      'RBK': Colors.indigo,
+      'Jusan': Colors.teal,
+      'Bereke': Colors.amber,
+    };
+
+    final methodNames = {
+      'Online': 'Онлайн',
+      'Cash': 'Наличные',
+      'Kaspi': 'Kaspi',
+      'Halyk': 'Halyk',
+      'BCC': 'БЦК',
+      'Forte': 'Forte',
+      'RBK': 'RBK',
+      'Jusan': 'Jusan',
+      'Bereke': 'Bereke',
+    };
+
+    final methodColor = methodColors[method] ?? Colors.grey;
+    final methodName = methodNames[method] ?? method;
+
+    // ✅ КРАСИВАЯ ДАТА И ВРЕМЯ
+    String formattedDateTime = '';
+    if (paidAt.isNotEmpty) {
+      try {
+        final dt = DateTime.parse(paidAt);
+        formattedDateTime = DateFormat('dd MMMM yyyy, HH:mm', 'ru').format(dt);
+      } catch (e) {
+        formattedDateTime = paidAt;
+      }
+    }
+
+    return Container(
+      padding: EdgeInsets.all(isMobile ? 12 : 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ✅ HEADER: Тип платежа + Метод
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(isMobile ? 8 : 10),
+                decoration: BoxDecoration(
+                  color: methodColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  _getPaymentIcon(method),
+                  color: methodColor,
+                  size: isMobile ? 18 : 20,
+                ),
+              ),
+              SizedBox(width: isMobile ? 10 : 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '$paymentType • $methodName',
+                      style: TextStyle(
+                        fontSize: isMobile ? 13 : 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    // ✅ КРАСИВАЯ ДАТА
+                    Text(
+                      formattedDateTime,
+                      style: TextStyle(
+                        fontSize: isMobile ? 11 : 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    _formatCurrency(amount),
+                    style: TextStyle(
+                      fontSize: isMobile ? 16 : 18,
+                      fontWeight: FontWeight.bold,
+                      color: methodColor,
+                    ),
+                  ),
+                  Container(
+                    margin: const EdgeInsets.only(top: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isOffline
+                          ? Colors.grey.shade100
+                          : Colors.purple.shade50,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      isOffline ? 'Оффлайн' : 'Онлайн',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        color: isOffline ? Colors.grey.shade600 : Colors.purple,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          SizedBox(height: isMobile ? 8 : 10),
+          const Divider(height: 1),
+          SizedBox(height: isMobile ? 8 : 10),
+
+          // ✅ ИНФОРМАЦИЯ О БРОНИРОВАНИИ
+          Row(
+            children: [
+              Icon(
+                Icons.stadium,
+                size: isMobile ? 14 : 16,
+                color: Colors.grey.shade500,
+              ),
+              SizedBox(width: isMobile ? 6 : 8),
+              Expanded(
+                child: Text(
+                  arenaName,
+                  style: TextStyle(
+                    fontSize: isMobile ? 12 : 13,
+                    color: Colors.grey.shade700,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (startTime.isNotEmpty && endTime.isNotEmpty) ...[
+                Icon(
+                  Icons.access_time,
+                  size: isMobile ? 14 : 16,
+                  color: Colors.grey.shade500,
+                ),
+                SizedBox(width: isMobile ? 4 : 6),
+                Text(
+                  '$startTime - $endTime',
+                  style: TextStyle(
+                    fontSize: isMobile ? 11 : 12,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            ],
+          ),
+
+          SizedBox(height: isMobile ? 6 : 8),
+
+          // ✅ ИНФОРМАЦИЯ О КЛИЕНТЕ
+          Row(
+            children: [
+              Icon(
+                Icons.person_outline,
+                size: isMobile ? 14 : 16,
+                color: Colors.grey.shade500,
+              ),
+              SizedBox(width: isMobile ? 6 : 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      clientName,
+                      style: TextStyle(
+                        fontSize: isMobile ? 12 : 13,
+                        color: Colors.grey.shade700,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    // ✅ ТЕЛЕФОН
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.phone_outlined,
+                          size: isMobile ? 10 : 12,
+                          color: Colors.grey.shade400,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          phone,
+                          style: TextStyle(
+                            fontSize: isMobile ? 10 : 11,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getPaymentType(int index, int total, Map<String, dynamic>? booking) {
+    // Если передана информация о бронировании
+    if (booking != null) {
+      final prepaid = booking['prepaidAmount'] ?? 0;
+      final totalPrice = booking['totalPrice'] ?? 0;
+      final status = booking['bookingStatus'] ?? booking['status'] ?? '';
+
+      // ✅ ДЛЯ ОТМЕНЕННЫХ БРОНЕЙ
+      if (status == 'Cancelled') {
+        if (total == 1) {
+          // Один платеж - проверяем закрыл ли он всю сумму
+          if (prepaid >= totalPrice) {
+            return 'Полная оплата';
+          } else {
+            return 'Предоплата'; // ✅ ВОТ ЭТО!
+          }
+        }
+        // Если несколько платежей - используем стандартную логику
+        if (index == 0) return 'Предоплата';
+        if (index == total - 1) return 'Доплата';
+        return 'Платеж ${index + 1}';
+      }
+
+      // ✅ ДЛЯ АКТИВНЫХ БРОНЕЙ
+      if (total == 1) {
+        // Один платеж - проверяем закрыл ли он всю сумму
+        if (prepaid >= totalPrice) {
+          return 'Полная оплата';
+        } else {
+          return 'Предоплата';
+        }
+      }
+    }
+
+    // ✅ СТАНДАРТНАЯ ЛОГИКА ДЛЯ МНОЖЕСТВЕННЫХ ПЛАТЕЖЕЙ
+    if (total == 1) return 'Полная оплата';
+    if (index == 0) return 'Предоплата';
+    if (index == total - 1) return 'Доплата';
+    return 'Платеж ${index + 1}';
+  }
+
+  IconData _getPaymentIcon(String method) {
+    switch (method) {
+      case 'Online':
+        return Icons.credit_card;
+      case 'Cash':
+        return Icons.money;
+      default:
+        return Icons.account_balance;
+    }
+  }
+
+  String _formatDateTime(String dateTime) {
+    if (dateTime.isEmpty) return '';
+    try {
+      final dt = DateTime.parse(dateTime);
+      return DateFormat('dd.MM.yyyy HH:mm').format(dt);
+    } catch (e) {
+      return dateTime;
+    }
+  }
+
+  Widget _buildEmptyState(bool isMobile) {
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.all(isMobile ? 32.0 : 48.0),
+        child: Column(
+          children: [
+            Icon(
+              Icons.inbox_outlined,
+              size: isMobile ? 48 : 64,
+              color: Colors.grey.shade400,
+            ),
+            SizedBox(height: isMobile ? 12 : 16),
+            Text(
+              'Транзакции не найдены',
+              style: TextStyle(
+                fontSize: isMobile ? 16 : 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   String _formatCurrency(dynamic amount, {bool withSign = true}) {
     final formatter = NumberFormat('#,###');
     final numAmount = (amount is num) ? amount : 0;
-    final prefix = '';
-    return (withSign)
-        ? '$prefix${formatter.format(numAmount)} ₸'
-        : '$prefix${formatter.format(numAmount)}';
+    return withSign
+        ? '${formatter.format(numAmount)} ₸'
+        : formatter.format(numAmount);
   }
 }

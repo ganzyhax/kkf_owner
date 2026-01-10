@@ -45,6 +45,8 @@ dependencies:
   file_picker: ^10.3.3
   fl_chart: 0.68.0
   excel: ^4.0.6
+  dio:
+  webview_flutter: ^4.13.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

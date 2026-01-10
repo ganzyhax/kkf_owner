@@ -21,6 +21,21 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
   final _clientPhoneController = TextEditingController();
   final _prepaidAmountController = TextEditingController();
 
+  // ✅ НОВАЯ ЛОГИКА: Наличные или Перевод
+  String paymentType = 'Cash'; // 'Cash' или 'Transfer'
+  String? selectedBank; // Выбранный банк (если Transfer)
+
+  // ✅ СПИСОК БАНКОВ ДЛЯ DROPDOWN
+  final List<Map<String, String>> banks = [
+    {'value': 'Kaspi', 'label': 'Kaspi Bank'},
+    {'value': 'Halyk', 'label': 'Halyk Bank'},
+    {'value': 'BCC', 'label': 'Банк ЦентрКредит'},
+    {'value': 'Forte', 'label': 'Forte Bank'},
+    {'value': 'RBK', 'label': 'RBK Bank'},
+    {'value': 'Jusan', 'label': 'Jusan Bank'},
+    {'value': 'Bereke', 'label': 'Bereke Bank'},
+  ];
+
   List<int> selectedHours = [];
   DateTime selectedDate = DateTime.now();
   String? selectedArenaId;
@@ -151,6 +166,17 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
         return;
       }
 
+      // ✅ ВАЛИДАЦИЯ: если перевод, то банк обязателен
+      if (paymentType == 'Transfer' && selectedBank == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Выберите банк для перевода'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
       if (totalPrice <= 0) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -180,9 +206,15 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
 
       final prepaidAmount = double.tryParse(_prepaidAmountController.text) ?? 0;
 
+      // ✅ ОПРЕДЕЛЯЕМ ИТОГОВЫЙ МЕТОД ОПЛАТЫ
+      final String finalPaymentMethod = paymentType == 'Cash'
+          ? 'Cash'
+          : selectedBank!;
+
       context.read<BookingBloc>().add(
         BookingCreateOffline(
           arenaId: selectedArenaId!,
+          paymentMethod: finalPaymentMethod, // ✅ Cash или название банка
           startTime: startTime,
           endTime: endTime,
           clientName: _clientNameController.text,
@@ -211,12 +243,10 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
     final screenWidth = screenSize.width;
     final screenHeight = screenSize.height;
 
-    // Responsive breakpoints
     final isMobile = screenWidth < 600;
     final isTablet = screenWidth >= 600 && screenWidth < 1024;
     final isDesktop = screenWidth >= 1024;
 
-    // Responsive sizing
     final dialogWidth = isMobile
         ? screenWidth * 0.95
         : (isTablet ? screenWidth * 0.9 : 1200.0);
@@ -420,7 +450,6 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
         ),
         const SizedBox(height: 16),
 
-        // Time slots
         if (selectedArenaId != null)
           TimeSlotsGrid(
             selectedDate: selectedDate,
@@ -456,7 +485,6 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Left side: Arena and Date
         Expanded(
           flex: isTablet ? 1 : 1,
           child: Column(
@@ -473,12 +501,10 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
 
         const SizedBox(width: 24),
 
-        // Right side: Time slots and form
         Expanded(
           flex: isTablet ? 1 : 2,
           child: Column(
             children: [
-              // Time slots
               if (selectedArenaId != null)
                 TimeSlotsGrid(
                   selectedDate: selectedDate,
@@ -579,7 +605,6 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
           const Divider(),
           SizedBox(height: isMobile ? 6 : 8),
 
-          // Hourly price breakdown
           ...selectedHours.map((hour) {
             final price = hourlyPrices[hour] ?? 0;
             return Padding(
@@ -630,7 +655,6 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
             ),
             SizedBox(height: isMobile ? 12 : 16),
 
-            // Client name
             TextFormField(
               controller: _clientNameController,
               decoration: InputDecoration(
@@ -654,7 +678,6 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
 
             SizedBox(height: isMobile ? 12 : 16),
 
-            // Phone
             TextFormField(
               controller: _clientPhoneController,
               decoration: InputDecoration(
@@ -681,7 +704,11 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
 
             SizedBox(height: isMobile ? 12 : 16),
 
-            // Prepaid amount
+            // ✅ НОВЫЙ ВИДЖЕТ: ВЫБОР СПОСОБА ОПЛАТЫ
+            _buildPaymentMethodSelector(isMobile),
+
+            SizedBox(height: isMobile ? 12 : 16),
+
             TextFormField(
               controller: _prepaidAmountController,
               decoration: InputDecoration(
@@ -715,7 +742,6 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
 
             SizedBox(height: isMobile ? 12 : 16),
 
-            // Fully paid checkbox
             CheckboxListTile(
               value: isFullyPaid,
               onChanged: (value) {
@@ -751,6 +777,178 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // ✅ НОВЫЙ ВИДЖЕТ: ВЫБОР СПОСОБА ОПЛАТЫ (НАЛИЧНЫЕ ИЛИ ПЕРЕВОД)
+  Widget _buildPaymentMethodSelector(bool isMobile) {
+    return Container(
+      padding: EdgeInsets.all(isMobile ? 12 : 16),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Способ оплаты',
+            style: TextStyle(
+              fontSize: isMobile ? 14 : 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          SizedBox(height: isMobile ? 10 : 12),
+
+          // ✅ НАЛИЧНЫЕ ИЛИ ПЕРЕВОД
+          Row(
+            children: [
+              // Наличные
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      paymentType = 'Cash';
+                      selectedBank = null; // Сбрасываем банк
+                    });
+                  },
+                  child: Container(
+                    padding: EdgeInsets.all(isMobile ? 12 : 16),
+                    decoration: BoxDecoration(
+                      color: paymentType == 'Cash'
+                          ? Colors.green.shade50
+                          : Colors.white,
+                      border: Border.all(
+                        color: paymentType == 'Cash'
+                            ? Colors.green
+                            : Colors.grey.shade300,
+                        width: paymentType == 'Cash' ? 2 : 1,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.money,
+                          color: paymentType == 'Cash'
+                              ? Colors.green
+                              : Colors.grey,
+                          size: isMobile ? 28 : 32,
+                        ),
+                        SizedBox(height: isMobile ? 6 : 8),
+                        Text(
+                          'Наличные',
+                          style: TextStyle(
+                            fontWeight: paymentType == 'Cash'
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                            fontSize: isMobile ? 13 : 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              SizedBox(width: isMobile ? 10 : 12),
+
+              // Перевод
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      paymentType = 'Transfer';
+                      // Устанавливаем первый банк по умолчанию
+                      if (selectedBank == null) {
+                        selectedBank = banks.first['value'];
+                      }
+                    });
+                  },
+                  child: Container(
+                    padding: EdgeInsets.all(isMobile ? 12 : 16),
+                    decoration: BoxDecoration(
+                      color: paymentType == 'Transfer'
+                          ? Colors.blue.shade50
+                          : Colors.white,
+                      border: Border.all(
+                        color: paymentType == 'Transfer'
+                            ? Colors.blue
+                            : Colors.grey.shade300,
+                        width: paymentType == 'Transfer' ? 2 : 1,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.account_balance,
+                          color: paymentType == 'Transfer'
+                              ? Colors.blue
+                              : Colors.grey,
+                          size: isMobile ? 28 : 32,
+                        ),
+                        SizedBox(height: isMobile ? 6 : 8),
+                        Text(
+                          'Перевод',
+                          style: TextStyle(
+                            fontWeight: paymentType == 'Transfer'
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                            fontSize: isMobile ? 13 : 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          // ✅ DROPDOWN ДЛЯ ВЫБОРА БАНКА (ПОКАЗЫВАЕТСЯ ТОЛЬКО ПРИ ПЕРЕВОДЕ)
+          if (paymentType == 'Transfer') ...[
+            SizedBox(height: isMobile ? 12 : 16),
+            DropdownButtonFormField<String>(
+              value: selectedBank,
+              decoration: InputDecoration(
+                labelText: 'Выберите банк',
+                labelStyle: TextStyle(fontSize: isMobile ? 13 : 14),
+                prefixIcon: Icon(
+                  Icons.account_balance,
+                  size: isMobile ? 20 : 24,
+                ),
+                border: const OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: isMobile ? 12 : 16,
+                ),
+              ),
+              style: TextStyle(
+                fontSize: isMobile ? 14 : 16,
+                color: Colors.black,
+              ),
+              items: banks.map((bank) {
+                return DropdownMenuItem<String>(
+                  value: bank['value'],
+                  child: Text(bank['label']!),
+                );
+              }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  selectedBank = value;
+                });
+              },
+              validator: (value) {
+                if (paymentType == 'Transfer' && value == null) {
+                  return 'Выберите банк';
+                }
+                return null;
+              },
+            ),
+          ],
+        ],
       ),
     );
   }

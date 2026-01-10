@@ -23,8 +23,12 @@ class DashboardRefresh extends DashboardEvent {
 class DashboardMarkBookingAsPaid extends DashboardEvent {
   final String bookingId;
   final String? arenaId;
-
-  DashboardMarkBookingAsPaid({required this.bookingId, this.arenaId});
+  final String paymentMethod; // ✅ ДОБАВИЛИ
+  DashboardMarkBookingAsPaid({
+    required this.bookingId,
+    this.arenaId,
+    required this.paymentMethod, // ✅ ДОБАВИЛИ
+  });
 }
 
 class DashboardCancelBooking extends DashboardEvent {

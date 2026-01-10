@@ -23,67 +23,185 @@ class BookingsTable extends StatelessWidget {
     String bookingId,
     String? arenaId,
   ) async {
-    final confirmed = await showDialog<bool>(
+    String selectedPaymentMethod = 'Cash'; // По умолчанию наличные
+
+    // ✅ СПИСОК МЕТОДОВ ОПЛАТЫ
+    final paymentMethods = [
+      {'value': 'Cash', 'label': '💵 Наличные', 'icon': Icons.money},
+      {'value': 'Kaspi', 'label': '🏦 Kaspi Bank', 'icon': Icons.credit_card},
+      {
+        'value': 'Halyk',
+        'label': '🏦 Halyk Bank',
+        'icon': Icons.account_balance,
+      },
+      {
+        'value': 'BCC',
+        'label': '🏦 Банк ЦентрКредит',
+        'icon': Icons.account_balance,
+      },
+      {
+        'value': 'Forte',
+        'label': '🏦 Forte Bank',
+        'icon': Icons.account_balance,
+      },
+      {'value': 'RBK', 'label': '🏦 RBK Bank', 'icon': Icons.account_balance},
+      {
+        'value': 'Jusan',
+        'label': '🏦 Jusan Bank',
+        'icon': Icons.account_balance,
+      },
+      {
+        'value': 'Bereke',
+        'label': '🏦 Bereke Bank',
+        'icon': Icons.account_balance,
+      },
+    ];
+
+    final confirmed = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.payment, color: successColor),
-            SizedBox(width: 12),
-            Text(
-              'Подтверждение оплаты',
-              style: TextStyle(
-                color: primaryColor,
-                fontWeight: FontWeight.bold,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.payment, color: successColor),
+              SizedBox(width: 12),
+              Text(
+                'Подтверждение оплаты',
+                style: TextStyle(
+                  color: primaryColor,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 400,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Отметить это бронирование как полностью оплаченное?',
+                  style: TextStyle(fontSize: 16, color: primaryColor),
+                ),
+                const SizedBox(height: 24),
+
+                // ✅ ВЫБОР СПОСОБА ОПЛАТЫ
+                const Text(
+                  'Способ оплаты',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: primaryColor,
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: DropdownButton<String>(
+                    value: selectedPaymentMethod,
+                    isExpanded: true,
+                    underline: const SizedBox(),
+                    icon: const Icon(Icons.arrow_drop_down),
+                    items: paymentMethods.map((method) {
+                      return DropdownMenuItem<String>(
+                        value: method['value'] as String,
+                        child: Row(
+                          children: [
+                            Icon(
+                              method['icon'] as IconData,
+                              size: 20,
+                              color: Colors.grey.shade700,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              method['label'] as String,
+                              style: const TextStyle(fontSize: 15),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedPaymentMethod = value!;
+                      });
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Отмена', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, {
+                'confirmed': true,
+                'paymentMethod': selectedPaymentMethod,
+              }),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: successColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+              ),
+              child: const Text(
+                'Подтвердить',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],
         ),
-        content: const Text(
-          'Отметить это бронирование как полностью оплаченное?',
-          style: TextStyle(fontSize: 16, color: primaryColor),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Отмена', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: successColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            ),
-            child: const Text(
-              'Подтвердить',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
       ),
     );
 
-    if (confirmed != true) return;
+    if (confirmed == null || confirmed['confirmed'] != true) return;
+
+    final paymentMethod = confirmed['paymentMethod'] as String;
 
     try {
-      BlocProvider.of<DashboardBloc>(context)
-        ..add(DashboardMarkBookingAsPaid(bookingId: bookingId));
+      // ✅ ПЕРЕДАЕМ МЕТОД ОПЛАТЫ В BLOC
+      BlocProvider.of<DashboardBloc>(context).add(
+        DashboardMarkBookingAsPaid(
+          bookingId: bookingId,
+          paymentMethod: paymentMethod, // ✅ ДОБАВИЛИ
+        ),
+      );
 
       if (context.mounted) {
+        // ✅ ПОКАЗЫВАЕМ НАЗВАНИЕ МЕТОДА В SNACKBAR
+        final methodName =
+            paymentMethods.firstWhere(
+                  (m) => m['value'] == paymentMethod,
+                  orElse: () => {'label': paymentMethod},
+                )['label']
+                as String;
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
                 const Icon(Icons.check_circle, color: Colors.white),
                 const SizedBox(width: 8),
-                const Text('Бронирование отмечено как оплаченное'),
+                Expanded(child: Text('Оплачено через $methodName')),
               ],
             ),
             backgroundColor: successColor,
@@ -1253,7 +1371,7 @@ class BookingsTable extends StatelessWidget {
             _buildActionButton(
               context,
               Icons.check_circle_outline,
-              'Оплачено',
+              'Отметить как оплачено',
               successColor,
               () => _markAsPaid(context, bookingId, arenaId),
             ),

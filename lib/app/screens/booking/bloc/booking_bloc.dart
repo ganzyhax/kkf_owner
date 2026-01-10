@@ -50,10 +50,10 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
           'startTime': event.startTime.toIso8601String(),
           'endTime': event.endTime.toIso8601String(),
           'clientName': event.clientName,
-          'clientPhone': event.clientPhone, // ✅
+          'clientPhone': event.clientPhone,
           'prepaidAmount': event.prepaidAmount,
           'totalPrice': event.totalPrice,
-          'isFullyPaid': event.isFullyPaid, // ✅
+          'paymentMethod': event.paymentMethod, // ✅ ДОБАВЬТЕ ЭТО
         };
 
         log('Creating offline booking: $body');

@@ -224,11 +224,16 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     Emitter<DashboardState> emit,
   ) async {
     try {
-      log('Marking booking as paid: ${event.bookingId}');
+      log(
+        'Marking booking as paid: ${event.bookingId} with method: ${event.paymentMethod}',
+      );
 
+      // ✅ ПЕРЕДАЕМ МЕТОД ОПЛАТЫ В API
       var res = await ApiClient.patch(
         'api/bookings/${event.bookingId}/mark-paid',
-        {},
+        {
+          'paymentMethod': event.paymentMethod, // ✅ ДОБАВИЛИ
+        },
       );
 
       log('Mark as paid response: $res');
@@ -247,7 +252,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     } catch (e, stackTrace) {
       log('Mark as paid error: $e');
       log('Stack trace: $stackTrace');
-      // Можно добавить состояние ошибки или показать snackbar
+
       emit(
         DashboardError(
           message: 'Ошибка при пометке оплаты: $e',

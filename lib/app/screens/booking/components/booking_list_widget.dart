@@ -1322,6 +1322,9 @@ class _BookingsOverviewWidgetState extends State<BookingsOverviewWidget> {
     final bookingStatus = booking['status'] ?? 'Pending';
     final isOffline = booking['isOfflineBooking'] ?? false;
 
+    // ✅ ПОЛУЧАЕМ PAYMENT HISTORY
+    final paymentHistory = booking['paymentHistory'] as List<dynamic>? ?? [];
+
     Color statusColor;
     String statusText;
     IconData statusIcon;
@@ -1359,6 +1362,7 @@ class _BookingsOverviewWidgetState extends State<BookingsOverviewWidget> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ✅ HEADER
           Row(
             children: [
               Container(
@@ -1420,200 +1424,449 @@ class _BookingsOverviewWidgetState extends State<BookingsOverviewWidget> {
               ),
             ],
           ),
+
           SizedBox(height: isMobile ? 10 : 12),
           const Divider(height: 1),
           SizedBox(height: isMobile ? 10 : 12),
+
+          // ✅ MAIN CONTENT
           if (isMobile)
-            // Mobile: Stack vertically
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.person_outline,
-                          size: 14,
-                          color: Colors.grey.shade600,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Клиент:',
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      clientName,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      clientPhone,
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(statusIcon, size: 14, color: statusColor),
-                        const SizedBox(width: 4),
-                        Text(
-                          statusText,
-                          style: TextStyle(
-                            color: statusColor,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          '$totalPrice ₸',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        if (prepaidAmount > 0)
-                          Text(
-                            'Предоплата: $prepaidAmount ₸',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        if (remainingAmount > 0)
-                          Text(
-                            'Осталось: $remainingAmount ₸',
-                            style: const TextStyle(
-                              fontSize: 10,
-                              color: Colors.red,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              ],
+            _buildMobileContent(
+              clientName,
+              clientPhone,
+              statusIcon,
+              statusColor,
+              statusText,
+              totalPrice,
+              prepaidAmount,
+              remainingAmount,
+              paymentHistory,
+              booking,
             )
           else
-            // Tablet & Desktop: Side by side
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.person_outline,
-                            size: 16,
-                            color: Colors.grey.shade600,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Клиент:',
-                            style: TextStyle(
-                              color: Colors.grey.shade600,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        clientName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        clientPhone,
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(statusIcon, size: 16, color: statusColor),
-                        const SizedBox(width: 4),
-                        Text(
-                          statusText,
-                          style: TextStyle(
-                            color: statusColor,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '$totalPrice ₸',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    if (prepaidAmount > 0) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        'Предоплата: $prepaidAmount ₸',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
-                    if (remainingAmount > 0) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        'Осталось: $remainingAmount ₸',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Colors.red,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ],
+            _buildDesktopContent(
+              clientName,
+              clientPhone,
+              statusIcon,
+              statusColor,
+              statusText,
+              totalPrice,
+              prepaidAmount,
+              remainingAmount,
+              paymentHistory,
+              booking,
             ),
         ],
       ),
     );
+  }
+
+  // ✅ MOBILE LAYOUT
+  Widget _buildMobileContent(
+    String clientName,
+    String clientPhone,
+    IconData statusIcon,
+    Color statusColor,
+    String statusText,
+    num totalPrice,
+    num prepaidAmount,
+    num remainingAmount,
+    List<dynamic> paymentHistory,
+    var booking,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Клиент
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.person_outline,
+                  size: 14,
+                  color: Colors.grey.shade600,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'Клиент:',
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              clientName,
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              clientPhone,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 12),
+
+        // Статус и цена
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Icon(statusIcon, size: 14, color: statusColor),
+                const SizedBox(width: 4),
+                Text(
+                  statusText,
+                  style: TextStyle(
+                    color: statusColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '$totalPrice ₸',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                if (remainingAmount > 0)
+                  Text(
+                    'Осталось: $remainingAmount ₸',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: Colors.red,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+
+        // ✅ ИСТОРИЯ ПЛАТЕЖЕЙ
+        if (paymentHistory.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          const Divider(height: 1),
+          const SizedBox(height: 8),
+          _buildPaymentHistory(paymentHistory, true, booking),
+        ],
+      ],
+    );
+  }
+
+  // ✅ DESKTOP LAYOUT
+  Widget _buildDesktopContent(
+    String clientName,
+    String clientPhone,
+    IconData statusIcon,
+    Color statusColor,
+    String statusText,
+    num totalPrice,
+    num prepaidAmount,
+    num remainingAmount,
+    List<dynamic> paymentHistory,
+    booking,
+  ) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.person_outline,
+                        size: 16,
+                        color: Colors.grey.shade600,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Клиент:',
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    clientName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    clientPhone,
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Row(
+                  children: [
+                    Icon(statusIcon, size: 16, color: statusColor),
+                    const SizedBox(width: 4),
+                    Text(
+                      statusText,
+                      style: TextStyle(
+                        color: statusColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '$totalPrice ₸',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                if (remainingAmount > 0) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Осталось: $remainingAmount ₸',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Colors.red,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+
+        // ✅ ИСТОРИЯ ПЛАТЕЖЕЙ
+        if (paymentHistory.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          const Divider(height: 1),
+          const SizedBox(height: 12),
+          _buildPaymentHistory(paymentHistory, false, booking),
+        ],
+      ],
+    );
+  }
+
+  // ✅ ВИДЖЕТ ИСТОРИИ ПЛАТЕЖЕЙ
+  Widget _buildPaymentHistory(
+    List<dynamic> paymentHistory,
+    bool isMobile,
+    Map<String, dynamic> booking, // ✅ ДОБАВЬ ПАРАМЕТР
+  ) {
+    // Маппинг методов оплаты на цвета и названия
+    final methodColors = {
+      'Online': Colors.blue,
+      'Cash': Colors.green,
+      'Kaspi': Colors.red,
+      'Halyk': Colors.blue,
+      'BCC': Colors.orange,
+      'Forte': Colors.purple,
+      'RBK': Colors.indigo,
+      'Jusan': Colors.teal,
+      'Bereke': Colors.amber,
+    };
+
+    final methodNames = {
+      'Online': 'Онлайн',
+      'Cash': 'Наличные',
+      'Kaspi': 'Kaspi',
+      'Halyk': 'Halyk',
+      'BCC': 'БЦК',
+      'Forte': 'Forte',
+      'RBK': 'RBK',
+      'Jusan': 'Jusan',
+      'Bereke': 'Bereke',
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'История оплаты:',
+          style: TextStyle(
+            fontSize: isMobile ? 10 : 11,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey.shade600,
+          ),
+        ),
+        const SizedBox(height: 6),
+        ...paymentHistory.asMap().entries.map((entry) {
+          final index = entry.key;
+          final payment = entry.value as Map<String, dynamic>;
+
+          final amount = payment['amount'] ?? 0;
+          final method = payment['method'] as String? ?? 'Cash';
+          final methodName = methodNames[method] ?? method;
+          final methodColor = methodColors[method] ?? Colors.grey;
+
+          // ✅ ИСПОЛЬЗУЕМ ФУНКЦИЮ _getPaymentType
+          String paymentType = _getPaymentType(
+            index,
+            paymentHistory.length,
+            booking,
+          );
+
+          return Padding(
+            padding: EdgeInsets.only(bottom: isMobile ? 4 : 6),
+            child: Row(
+              children: [
+                // Иконка
+                Container(
+                  padding: EdgeInsets.all(isMobile ? 4 : 5),
+                  decoration: BoxDecoration(
+                    color: methodColor.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Icon(
+                    _getPaymentIcon(method),
+                    color: methodColor,
+                    size: isMobile ? 12 : 14,
+                  ),
+                ),
+                SizedBox(width: isMobile ? 6 : 8),
+
+                // Информация о платеже
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '$paymentType • $methodName',
+                        style: TextStyle(
+                          fontSize: isMobile ? 11 : 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade800,
+                        ),
+                      ),
+                      if (payment['paidAt'] != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          _formatDateTime(payment['paidAt']),
+                          style: TextStyle(
+                            fontSize: isMobile ? 9 : 10,
+                            color: Colors.grey.shade500,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                // Сумма
+                Text(
+                  '$amount ₸',
+                  style: TextStyle(
+                    fontSize: isMobile ? 12 : 13,
+                    fontWeight: FontWeight.bold,
+                    color: methodColor,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ],
+    );
+  }
+
+  String _getPaymentType(int index, int total, Map<String, dynamic>? booking) {
+    // Если передана информация о бронировании
+    if (booking != null) {
+      final prepaid = booking['prepaidAmount'] ?? 0;
+      final totalPrice = booking['totalPrice'] ?? 0;
+      final status = booking['status'] ?? '';
+
+      // ✅ ДЛЯ ОТМЕНЕННЫХ БРОНЕЙ
+      if (status == 'Cancelled') {
+        if (total == 1) {
+          if (prepaid >= totalPrice) {
+            return 'Полная оплата';
+          } else {
+            return 'Предоплата';
+          }
+        }
+        if (index == 0) return 'Предоплата';
+        if (index == total - 1) return 'Доплата';
+        return 'Платеж ${index + 1}';
+      }
+
+      // ✅ ДЛЯ АКТИВНЫХ БРОНЕЙ
+      if (total == 1) {
+        if (prepaid >= totalPrice) {
+          return 'Полная оплата';
+        } else {
+          return 'Предоплата';
+        }
+      }
+    }
+
+    // ✅ СТАНДАРТНАЯ ЛОГИКА
+    if (total == 1) return 'Полная оплата';
+    if (index == 0) return 'Предоплата';
+    if (index == total - 1) return 'Доплата';
+    return 'Платеж ${index + 1}';
+  }
+
+  // ✅ HELPER: Иконка для метода оплаты
+  IconData _getPaymentIcon(String method) {
+    switch (method) {
+      case 'Online':
+        return Icons.credit_card;
+      case 'Cash':
+        return Icons.money;
+      case 'Kaspi':
+      case 'Halyk':
+      case 'BCC':
+      case 'Forte':
+      case 'RBK':
+      case 'Jusan':
+      case 'Bereke':
+        return Icons.account_balance;
+      default:
+        return Icons.payment;
+    }
+  }
+
+  // ✅ HELPER: Форматирование даты
+  String _formatDateTime(dynamic dateTime) {
+    if (dateTime == null) return '';
+
+    try {
+      DateTime dt;
+      if (dateTime is String) {
+        dt = DateTime.parse(dateTime);
+      } else if (dateTime is DateTime) {
+        dt = dateTime;
+      } else {
+        return '';
+      }
+
+      return DateFormat('dd.MM.yyyy HH:mm').format(dt);
+    } catch (e) {
+      return '';
+    }
   }
 
   Widget _buildEmptyState(bool isMobile) {
