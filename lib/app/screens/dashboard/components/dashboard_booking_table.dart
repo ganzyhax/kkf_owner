@@ -1153,6 +1153,10 @@ class BookingsTable extends StatelessWidget {
                   child: _TableHeaderContent('Клиент', Icons.person),
                 ),
                 _TableSpace(
+                  width: 150,
+                  child: _TableHeaderContent('Тип платежа', Icons.payment),
+                ),
+                _TableSpace(
                   width: 180,
                   child: _TableHeaderContent('Оплата', Icons.payment),
                 ),
@@ -1209,6 +1213,14 @@ class BookingsTable extends StatelessWidget {
                     width: 150,
                     child: _TableCell(booking['clientName'] ?? '', true),
                   ),
+                  _TableSpace(
+                    width: 150,
+                    child: _TableCell(
+                      (booking['isOfflineBooking']) ? 'Оффлайн' : 'Онлайн',
+                      true,
+                      isOnline: (booking['isOfflineBooking']) ? false : true,
+                    ),
+                  ),
                   _buildPaymentBadge(
                     booking['paymentDisplay'] ?? '',
                     booking['paymentStatus'] ?? 'unpaid',
@@ -1255,7 +1267,9 @@ class BookingsTable extends StatelessWidget {
 
   static Widget _TableCell(
     String text,
+
     bool bold, {
+    bool? isOnline,
     TextAlign alignment = TextAlign.left,
   }) {
     return Padding(
@@ -1266,7 +1280,11 @@ class BookingsTable extends StatelessWidget {
         style: TextStyle(
           fontSize: 14,
           fontWeight: bold ? FontWeight.w600 : FontWeight.normal,
-          color: primaryColor,
+          color: (isOnline != null)
+              ? (isOnline == true)
+                    ? Colors.green
+                    : Colors.amberAccent
+              : primaryColor,
         ),
       ),
     );
