@@ -1,10 +1,13 @@
 // lib/screens/owner/my_arenas_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
 import 'package:kff_owner_admin/app/screens/my_arena/bloc/my_arena_bloc.dart';
 import 'package:kff_owner_admin/app/screens/my_arena/pages/my_arena_edit_page.dart';
+
 import 'components/arena_header.dart';
 import 'components/arena_table.dart';
+import 'components/verification_banner.dart'; // <--- Импорт формы верификации
 
 class MyArenasScreen extends StatelessWidget {
   const MyArenasScreen({Key? key}) : super(key: key);
@@ -31,7 +34,7 @@ class _MyArenasScreenContent extends StatelessWidget {
           insetPadding: const EdgeInsets.all(16),
           child: Container(
             constraints: const BoxConstraints(maxWidth: 600),
-            child: ArenaEditPage(),
+            child: const ArenaEditPage(),
           ),
         ),
       ),
@@ -91,11 +94,33 @@ class _MyArenasScreenContent extends StatelessWidget {
       backgroundColor: Colors.grey[50],
       body: BlocBuilder<MyArenaBloc, MyArenaState>(
         builder: (context, state) {
+          // 1. СОСТОЯНИЕ ЗАГРУЗКИ
           if (state is MyArenaLoading) {
             return const Center(child: CircularProgressIndicator());
           }
 
+          // 2. СОСТОЯНИЕ УСПЕШНОЙ ЗАГРУЗКИ
           if (state is MyArenaLoaded) {
+            // Читаем статус верификации из state
+            // Если поля verificationStatus еще нет в MyArenaLoaded, добавь его туда!
+            // Для совместимости, если значение null, считаем, что статус 'none'
+            final String status = state.verificationStatus ?? 'none';
+            final String? rejectReason = state.verificationRejectReason;
+
+            // 🛑 ЕСЛИ ВЛАДЕЛЕЦ НЕ ОДОБРЕН (none, pending, rejected)
+            if (status != 'approved') {
+              return VerificationView(
+                status: status,
+                rejectReason: rejectReason,
+                onSuccess: () {
+                  // Перезапрашиваем данные после успешной отправки реквизитов
+                  // или нажатия кнопки "Обновить статус"
+                  context.read<MyArenaBloc>().add(MyArenaLoad());
+                },
+              );
+            }
+
+            // ✅ ЕСЛИ ОДОБРЕН — ПОКАЗЫВАЕМ СПИСОК ЕГО АРЕН
             return SafeArea(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(40),
@@ -115,6 +140,7 @@ class _MyArenasScreenContent extends StatelessWidget {
             );
           }
 
+          // 3. СОСТОЯНИЕ ОШИБКИ
           if (state is MyArenaError) {
             return Center(
               child: Column(
@@ -138,6 +164,7 @@ class _MyArenasScreenContent extends StatelessWidget {
             );
           }
 
+          // По умолчанию (Fallback)
           return const Center(child: CircularProgressIndicator());
         },
       ),

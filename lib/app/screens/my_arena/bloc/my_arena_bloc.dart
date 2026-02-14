@@ -26,8 +26,15 @@ class MyArenaBloc extends Bloc<MyArenaEvent, MyArenaState> {
           final List<Map<String, dynamic>> arenas = arenaList
               .map((e) => e as Map<String, dynamic>)
               .toList();
-
-          emit(MyArenaLoaded(arenas: arenas));
+          final String? vStatus = responseData['verificationStatus'];
+          final String? vReason = responseData['rejectReason'];
+          emit(
+            MyArenaLoaded(
+              arenas: arenas,
+              verificationStatus: vStatus,
+              verificationRejectReason: vReason,
+            ),
+          );
         } else {
           emit(MyArenaError(message: 'Failed to load arenas'));
         }

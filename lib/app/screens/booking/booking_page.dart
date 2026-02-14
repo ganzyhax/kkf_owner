@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
-import 'dart:html' as html;
 import 'package:kff_owner_admin/app/screens/booking/components/booking_list_widget.dart';
 import 'package:kff_owner_admin/app/screens/booking/components/offline_booking_dialog.dart';
 import 'package:kff_owner_admin/app/screens/my_arena/bloc/my_arena_bloc.dart';
@@ -30,6 +29,67 @@ class _BookingPageContent extends StatefulWidget {
 }
 
 class _BookingPageContentState extends State<_BookingPageContent> {
+  DateTime _startDate = DateTime.now();
+  DateTime _endDate = DateTime.now();
+  String _activeFilter = 'today'; // 'today', 'month', 'custom'
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _selectToday(); // Загрузка данных за сегодня при старте
+    });
+  }
+
+  void _loadBookings() {
+    // Формат YYYY-MM-DD исключает ошибки интерпретации месяца/дня на бэкенде
+    final startStr = DateFormat('yyyy-MM-dd').format(_startDate);
+    final endStr = DateFormat('yyyy-MM-dd').format(_endDate);
+
+    context.read<BookingBloc>().add(
+      BookingGetByPeriod(startDate: startStr, endDate: endStr),
+    );
+  }
+
+  void _selectToday() {
+    final now = DateTime.now();
+    setState(() {
+      _startDate = DateTime(now.year, now.month, now.day);
+      _endDate = DateTime(now.year, now.month, now.day);
+      _activeFilter = 'today';
+    });
+    _loadBookings();
+  }
+
+  void _selectMonth() {
+    final now = DateTime.now();
+    setState(() {
+      _startDate = DateTime(now.year, now.month, 1);
+      _endDate = DateTime(now.year, now.month + 1, 0); // Последний день месяца
+      _activeFilter = 'month';
+    });
+    _loadBookings();
+  }
+
+  Future<void> _selectCustomRange() async {
+    final DateTimeRange? picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2024),
+      lastDate: DateTime(2030),
+      initialDateRange: DateTimeRange(start: _startDate, end: _endDate),
+      helpText: 'Выберите период',
+    );
+
+    if (picked != null) {
+      setState(() {
+        _startDate = picked.start;
+        _endDate = picked.end;
+        _activeFilter = 'custom';
+      });
+      _loadBookings();
+    }
+  }
+
   void _showOfflineBookingDialog() {
     showDialog(
       context: context,
@@ -45,24 +105,7 @@ class _BookingPageContentState extends State<_BookingPageContent> {
 
   @override
   Widget build(BuildContext context) {
-    // Get screen size for responsive design
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isMobile = screenWidth < 600;
-    final isTablet = screenWidth >= 600 && screenWidth < 1024;
-    final isDesktop = screenWidth >= 1024;
-
-    // Responsive padding
-    final horizontalPadding = isMobile ? 16.0 : (isTablet ? 20.0 : 24.0);
-    final verticalPadding = isMobile ? 16.0 : 24.0;
-
-    // Responsive font sizes
-    final titleFontSize = isMobile ? 22.0 : (isTablet ? 26.0 : 28.0);
-    final subtitleFontSize = isMobile ? 13.0 : (isTablet ? 14.0 : 15.0);
-    final buttonFontSize = isMobile ? 14.0 : 16.0;
-
-    // Responsive button padding
-    final buttonHorizontalPadding = isMobile ? 16.0 : 24.0;
-    final buttonVerticalPadding = isMobile ? 12.0 : 16.0;
+    final isMobile = MediaQuery.of(context).size.width < 600;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8FC),
@@ -74,164 +117,104 @@ class _BookingPageContentState extends State<_BookingPageContent> {
                 SnackBar(
                   content: Text(state.message),
                   backgroundColor: Colors.green,
-                  behavior: SnackBarBehavior.floating,
-                  margin: EdgeInsets.all(isMobile ? 8 : 16),
                 ),
               );
-              final now = DateTime.now();
-
-              final startDate = DateTime(now.year, now.month, 1);
-              final endDate = DateTime(now.year, now.month + 1, 0);
-
-              final startStr = DateFormat('yyyy-MM-dd').format(startDate);
-              final endStr = DateFormat('yyyy-MM-dd').format(endDate);
-
-              context.read<BookingBloc>().add(
-                BookingGetByPeriod(startDate: startStr, endDate: endStr),
-              );
-            } else if (state is BookingError) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(state.message),
-                  backgroundColor: Colors.red,
-                  behavior: SnackBarBehavior.floating,
-                  margin: EdgeInsets.all(isMobile ? 8 : 16),
-                ),
-              );
+              _loadBookings(); // Рефреш данных после успеха
             }
           },
           child: SingleChildScrollView(
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: horizontalPadding,
-                vertical: verticalPadding,
-              ),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1400),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Adaptive header with button
-                      if (isMobile)
-                        // Mobile layout: Stack vertically
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Управление Бронированиями',
-                                  style: TextStyle(
-                                    fontSize: titleFontSize,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Просмотр и создание бронирований',
-                                  style: TextStyle(
-                                    color: Colors.black54,
-                                    fontSize: subtitleFontSize,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            // Full-width button on mobile
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton.icon(
-                                onPressed: _showOfflineBookingDialog,
-                                icon: const Icon(
-                                  Icons.add_circle_outline,
-                                  size: 20,
-                                ),
-                                label: const Text('Создать бронь'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.blue,
-                                  foregroundColor: Colors.white,
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: buttonHorizontalPadding,
-                                    vertical: buttonVerticalPadding,
-                                  ),
-                                  textStyle: TextStyle(
-                                    fontSize: buttonFontSize,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        )
-                      else
-                        // Tablet & Desktop layout: Side by side
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Управление Бронированиями',
-                                    style: TextStyle(
-                                      fontSize: titleFontSize,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Просмотр и создание бронирований',
-                                    style: TextStyle(
-                                      color: Colors.black54,
-                                      fontSize: subtitleFontSize,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            ElevatedButton.icon(
-                              onPressed: _showOfflineBookingDialog,
-                              icon: const Icon(Icons.add_circle_outline),
-                              label: const Text('Создать бронь'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue,
-                                foregroundColor: Colors.white,
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: buttonHorizontalPadding,
-                                  vertical: buttonVerticalPadding,
-                                ),
-                                textStyle: TextStyle(
-                                  fontSize: buttonFontSize,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-
-                      SizedBox(height: isMobile ? 20 : 24),
-
-                      // Bookings overview widget
-                      const BookingsOverviewWidget(),
-                    ],
-                  ),
+            padding: EdgeInsets.all(isMobile ? 16 : 24),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1400),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeader(isMobile),
+                    const SizedBox(height: 24),
+                    _buildMainFilterBar(),
+                    const SizedBox(height: 24),
+                    const BookingsOverviewWidget(), // Теперь внутри нет своих кнопок дат
+                  ],
                 ),
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildHeader(bool isMobile) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Бронирования',
+              style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              'Управление и статистика',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
+        ElevatedButton.icon(
+          onPressed: _showOfflineBookingDialog,
+          icon: const Icon(Icons.add),
+          label: const Text('Создать бронь'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blue,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMainFilterBar() {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _filterButton('Сегодня', 'today', _selectToday),
+          const SizedBox(width: 8),
+
+          Container(width: 1, height: 24, color: Colors.grey.shade300),
+          const SizedBox(width: 8),
+
+          _filterButton('Месяц', 'month', _selectMonth),
+        ],
+      ),
+    );
+  }
+
+  Widget _filterButton(String label, String code, VoidCallback onTap) {
+    bool selected = _activeFilter == code;
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => onTap(),
+      selectedColor: Colors.blue,
+      labelStyle: TextStyle(color: selected ? Colors.white : Colors.black87),
+      showCheckmark: false,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      side: BorderSide.none,
     );
   }
 }

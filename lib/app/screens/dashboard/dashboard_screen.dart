@@ -429,130 +429,145 @@ class _DashboardScreenContentState extends State<_DashboardScreenContent> {
   }
 
   // ✅ Метод для создания адаптивной сетки статистики
+  // lib/screens/owner/dashboard/dashboard_screen.dart
+
   Widget _buildStatsGrid(
     Map<String, dynamic> stats,
     bool isMobile,
     bool isTablet,
   ) {
+    // Подготавливаем данные: берем общемесячные и сегодняшние показатели
+    // Сегодняшние показатели нужно будет пробросить из бэкенда в stats.today
     final statCards = [
       {
         'label': 'Получено',
-        'subtitle': 'Поступило на счет',
-        'value': '${stats['paidAmount']} ₸',
+        'monthValue': '${stats['paidAmount']} ₸',
+        'todayValue': '${stats['todayPaidAmount'] ?? 0} ₸',
+        'icon': Icons.account_balance_wallet_rounded,
         'color': const Color(0xFF059669),
       },
       {
         'label': 'Ожидается',
-        'subtitle': 'Долги клиентов',
-        'value': '${stats['pendingAmount']} ₸',
+        'monthValue': '${stats['pendingAmount']} ₸',
+        'todayValue': '${stats['todayPendingAmount'] ?? 0} ₸',
+        'icon': Icons.hourglass_empty_rounded,
         'color': const Color(0xFFEAB308),
       },
       {
         'label': 'Оборот',
-        'subtitle': 'Все бронирования',
-        'value': '${stats['grossRevenue']} ₸',
+        'monthValue': '${stats['grossRevenue']} ₸',
+        'todayValue': '${stats['todayGrossRevenue'] ?? 0} ₸',
+        'icon': Icons.analytics_rounded,
         'color': const Color(0xFF2563EB),
       },
       {
         'label': 'Чистый доход',
-        'subtitle': 'После комиссии',
-        'value': '${stats['netRevenue']} ₸',
+        'monthValue': '${stats['netRevenue']} ₸',
+        'todayValue': '${stats['todayNetRevenue'] ?? 0} ₸',
+        'icon': Icons.savings_rounded,
         'color': const Color(0xFF8B5CF6),
       },
     ];
 
-    if (isMobile) {
-      // ✅ Mobile: 2 columns grid with isMobile: true
-      return Column(
-        children: [
-          for (var i = 0; i < statCards.length; i += 2)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: Row(
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: isMobile ? 2 : (isTablet ? 2 : 4),
+        crossAxisSpacing: isMobile ? 12 : 20,
+        mainAxisSpacing: isMobile ? 12 : 20,
+        childAspectRatio: isMobile
+            ? 1.1
+            : 1.4, // Делаем карточки чуть выше для двух строк
+      ),
+      itemCount: statCards.length,
+      itemBuilder: (context, index) {
+        final card = statCards[index];
+        return Container(
+          padding: EdgeInsets.all(isMobile ? 12 : 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+            border: Border.all(color: const Color(0xFFF3F4F6)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
                 children: [
-                  Expanded(
-                    child: StatCard(
-                      label: statCards[i]['label'] as String,
-                      subtitle: statCards[i]['subtitle'] as String,
-                      value: statCards[i]['value'] as String,
-                      color: statCards[i]['color'] as Color,
-                      isMobile: true, // ✅ Передаём isMobile: true
+                  Icon(
+                    card['icon'] as IconData,
+                    color: card['color'] as Color,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    card['label'] as String,
+                    style: TextStyle(
+                      fontSize: isMobile ? 12 : 14,
+                      color: const Color(0xFF6B7280),
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
-                  if (i + 1 < statCards.length) ...[
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: StatCard(
-                        label: statCards[i + 1]['label'] as String,
-                        subtitle: statCards[i + 1]['subtitle'] as String,
-                        value: statCards[i + 1]['value'] as String,
-                        color: statCards[i + 1]['color'] as Color,
-                        isMobile: true, // ✅ Передаём isMobile: true
+                ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    card['monthValue'] as String,
+                    style: TextStyle(
+                      fontSize: isMobile ? 16 : 20,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF111827),
+                    ),
+                  ),
+                  Text(
+                    'за месяц',
+                    style: TextStyle(fontSize: 10, color: Colors.grey.shade400),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: (card['color'] as Color).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Сегодня: ',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: card['color'] as Color,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      card['todayValue'] as String,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: card['color'] as Color,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
-                ],
+                ),
               ),
-            ),
-        ],
-      );
-    } else if (isTablet) {
-      // ✅ Tablet: 2x2 grid
-      return Column(
-        children: [
-          Row(
-            children: statCards.take(2).map((card) {
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 24, bottom: 24),
-                  child: StatCard(
-                    label: card['label'] as String,
-                    subtitle: card['subtitle'] as String,
-                    value: card['value'] as String,
-                    color: card['color'] as Color,
-                    // isMobile по умолчанию false для tablet
-                  ),
-                ),
-              );
-            }).toList(),
+            ],
           ),
-          Row(
-            children: statCards.skip(2).map((card) {
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 24),
-                  child: StatCard(
-                    label: card['label'] as String,
-                    subtitle: card['subtitle'] as String,
-                    value: card['value'] as String,
-                    color: card['color'] as Color,
-                    // isMobile по умолчанию false для tablet
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ],
-      );
-    } else {
-      // ✅ Desktop: Single row with GridView
-      return GridView.count(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        crossAxisCount: 4,
-        mainAxisSpacing: 24,
-        crossAxisSpacing: 24,
-        childAspectRatio: 2.5,
-        children: statCards.map((card) {
-          return StatCard(
-            label: card['label'] as String,
-            subtitle: card['subtitle'] as String,
-            value: card['value'] as String,
-            color: card['color'] as Color,
-            // isMobile по умолчанию false для desktop
-          );
-        }).toList(),
-      );
-    }
+        );
+      },
+    );
   }
 }

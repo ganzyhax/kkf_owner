@@ -8,26 +8,37 @@ final class DashboardInitial extends DashboardState {}
 class DashboardLoading extends DashboardState {}
 
 class DashboardLoaded extends DashboardState {
-  final Map<String, dynamic> stats;
+  final List<Map<String, dynamic>> graphics;
+  final List<Map<String, dynamic>> previousMonthGraphics;
+  final Map<String, dynamic> stats; // Здесь уже есть все today-поля
   final List<Map<String, dynamic>> todayBookings;
   final String date;
   final String month;
   final bool isAllArenas;
   final List<Map<String, dynamic>> arenas;
 
-  final List<Map<String, dynamic>> graphics;
-  final List<Map<String, dynamic>> previousMonthGraphics;
-
   DashboardLoaded({
+    required this.graphics,
+    required this.previousMonthGraphics,
     required this.stats,
     required this.todayBookings,
     required this.date,
     required this.month,
-    required this.graphics,
-    this.isAllArenas = false,
-    required this.previousMonthGraphics,
-    this.arenas = const [],
+    required this.isAllArenas,
+    required this.arenas,
   });
+
+  @override
+  List<Object> get props => [
+    graphics,
+    previousMonthGraphics,
+    stats,
+    todayBookings,
+    date,
+    month,
+    isAllArenas,
+    arenas,
+  ];
 }
 
 class DashboardError extends DashboardState {
