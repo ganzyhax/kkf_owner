@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:kff_owner_admin/app/api/api.dart'; // Твой ApiClient
@@ -102,7 +103,7 @@ class _VerificationViewState extends State<VerificationView> {
         'api/profile/verify-business',
         payload,
       );
-
+      log(response.toString());
       if (response['success'] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
