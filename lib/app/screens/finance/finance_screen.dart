@@ -1084,10 +1084,11 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
     final rbk = paymentBreakdown['rbk'] as num? ?? 0;
     final jusan = paymentBreakdown['jusan'] as num? ?? 0;
     final bereke = paymentBreakdown['bereke'] as num? ?? 0;
+    final unknown = paymentBreakdown['unknown'] as num? ?? 0;
 
     final onlineTotal = online;
     final offlineTotal =
-        cash + kaspi + halyk + bcc + forte + rbk + jusan + bereke;
+        cash + kaspi + halyk + bcc + forte + rbk + jusan + bereke + unknown;
     final grandTotal = onlineTotal + offlineTotal;
 
     if (grandTotal == 0) return const SizedBox.shrink();
@@ -1179,6 +1180,7 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
                       rbk,
                       jusan,
                       bereke,
+                      unknown,
                       isMobile,
                     ),
                   ),
@@ -1218,6 +1220,7 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
                         rbk,
                         jusan,
                         bereke,
+                        unknown,
                         isMobile,
                       ),
                     ),
@@ -1308,6 +1311,7 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
     num rbk,
     num jusan,
     num bereke,
+    num unknown,
     bool isMobile,
   ) {
     return Column(
@@ -1332,6 +1336,17 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
           ),
           const SizedBox(height: 6),
         ],
+        if (unknown > 0) ...[
+          // ← добавить
+          _buildPaymentMethodRow(
+            'Неизвестно',
+            unknown,
+            Colors.grey.shade700,
+            Icons.storefront,
+            isMobile,
+          ),
+          const SizedBox(height: 6),
+        ],
         if (kaspi > 0 ||
             halyk > 0 ||
             bcc > 0 ||
@@ -1342,7 +1357,8 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (cash > 0) ...[
+              if (cash > 0 || unknown > 0) ...[
+                // ← offline тоже
                 Padding(
                   padding: EdgeInsets.symmetric(vertical: isMobile ? 4 : 6),
                   child: Text(
