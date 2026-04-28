@@ -1,9 +1,11 @@
 // lib/screens/finance/finance_dashboard.dart
+import 'dart:developer';
 import 'dart:html' as html;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:kff_owner_admin/app/api/api.dart';
 import 'package:kff_owner_admin/app/screens/finance/bloc/finance_bloc.dart';
 import 'package:excel/excel.dart' hide Border;
 
@@ -409,16 +411,6 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
     );
   }
 
-  void _exportToCsv() {
-    context.read<FinanceBloc>().add(
-      FinanceExportCSV(
-        startDate: startDate,
-        endDate: endDate,
-        arenaId: selectedArenaId,
-      ),
-    );
-  }
-
   Future<void> _exportToExcel(
     List<Map<String, dynamic>> transactions,
     Map<String, dynamic> summary,
@@ -427,225 +419,315 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
       var excel = Excel.createExcel();
       Sheet sheetObject = excel['Финансы'];
 
+      // Удаляем стандартный лист, если он создался
       if (excel.sheets.containsKey('Sheet1')) {
         excel.delete('Sheet1');
       }
 
+      // --- СТИЛИ ---
       CellStyle headerStyle = CellStyle(
         bold: true,
         fontSize: 12,
         backgroundColorHex: ExcelColor.blue,
         fontColorHex: ExcelColor.white,
+        horizontalAlign: HorizontalAlign.Center,
       );
 
-      CellStyle totalStyle = CellStyle(
-        bold: true,
-        fontSize: 11,
-        backgroundColorHex: ExcelColor.white54,
+      CellStyle titleStyle = CellStyle(bold: true, fontSize: 14);
+
+      // --- 1. ЗАГОЛОВОК ---
+      sheetObject.cell(CellIndex.indexByString('A1')).value = TextCellValue(
+        'ФИНАНСОВЫЙ ОТЧЕТ',
       );
+      sheetObject.cell(CellIndex.indexByString('A1')).cellStyle = titleStyle;
 
-      CellStyle titleStyleCell = CellStyle(bold: true, fontSize: 14);
-
-      var titleCell = sheetObject.cell(CellIndex.indexByString('A1'));
-      titleCell.value = TextCellValue('Финансовый отчет');
-      titleCell.cellStyle = titleStyleCell;
-
-      var periodCell = sheetObject.cell(CellIndex.indexByString('A2'));
-      periodCell.value = TextCellValue(
+      sheetObject.cell(CellIndex.indexByString('A2')).value = TextCellValue(
         'Период: ${DateFormat('dd.MM.yyyy').format(startDate)} - ${DateFormat('dd.MM.yyyy').format(endDate)}',
       );
 
-      sheetObject.cell(CellIndex.indexByString('A4')).value = TextCellValue(
+      // --- 2. ОСНОВНЫЕ ПОКАЗАТЕЛИ ---
+      int currentRow = 4;
+      sheetObject
+          .cell(
+            CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+          )
+          .value = TextCellValue(
         'ОСНОВНЫЕ ПОКАЗАТЕЛИ',
       );
-      sheetObject.cell(CellIndex.indexByString('A4')).cellStyle = headerStyle;
+      sheetObject
+              .cell(
+                CellIndex.indexByColumnRow(
+                  columnIndex: 0,
+                  rowIndex: currentRow,
+                ),
+              )
+              .cellStyle =
+          headerStyle;
 
-      sheetObject.cell(CellIndex.indexByString('A5')).value = TextCellValue(
-        'Получено:',
-      );
-      sheetObject.cell(CellIndex.indexByString('A5')).cellStyle = totalStyle;
-      sheetObject.cell(CellIndex.indexByString('B5')).value = TextCellValue(
-        '${summary['paidAmount'] ?? 0} ₸',
-      );
-
-      sheetObject.cell(CellIndex.indexByString('A6')).value = TextCellValue(
-        'Ожидается:',
-      );
-      sheetObject.cell(CellIndex.indexByString('A6')).cellStyle = totalStyle;
-      sheetObject.cell(CellIndex.indexByString('B6')).value = TextCellValue(
-        '${summary['pendingAmount'] ?? 0} ₸',
-      );
-
-      sheetObject.cell(CellIndex.indexByString('A7')).value = TextCellValue(
+      currentRow++;
+      sheetObject
+          .cell(
+            CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+          )
+          .value = TextCellValue(
         'Оборот:',
       );
-      sheetObject.cell(CellIndex.indexByString('A7')).cellStyle = totalStyle;
-      sheetObject.cell(CellIndex.indexByString('B7')).value = TextCellValue(
+      sheetObject
+          .cell(
+            CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: currentRow),
+          )
+          .value = TextCellValue(
         '${summary['grossRevenue'] ?? 0} ₸',
       );
 
-      sheetObject.cell(CellIndex.indexByString('A8')).value = TextCellValue(
+      currentRow++;
+      sheetObject
+          .cell(
+            CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+          )
+          .value = TextCellValue(
         'Чистый доход:',
       );
-      sheetObject.cell(CellIndex.indexByString('A8')).cellStyle = totalStyle;
-      sheetObject.cell(CellIndex.indexByString('B8')).value = TextCellValue(
+      sheetObject
+          .cell(
+            CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: currentRow),
+          )
+          .value = TextCellValue(
         '${summary['netRevenue'] ?? 0} ₸',
       );
 
-      sheetObject.cell(CellIndex.indexByString('A10')).value = TextCellValue(
-        'БРОНИРОВАНИЯ',
-      );
-      sheetObject.cell(CellIndex.indexByString('A10')).cellStyle = headerStyle;
+      // --- 3. ДЕТАЛИЗАЦИЯ ОПЛАТ (из вложенного paymentBreakdown) ---
+      currentRow += 2;
+      final mainBreakdown =
+          summary['paymentBreakdown'] as Map<String, dynamic>? ?? {};
 
-      sheetObject.cell(CellIndex.indexByString('A11')).value = TextCellValue(
-        'Всего броней:',
-      );
-      sheetObject.cell(CellIndex.indexByString('A11')).cellStyle = totalStyle;
-      sheetObject.cell(CellIndex.indexByString('B11')).value = TextCellValue(
-        '${summary['totalBookings'] ?? 0}',
-      );
+      // Суммируем все банки для итоговой таблицы
+      final double totalBanks =
+          ((mainBreakdown['kaspi'] ?? 0) +
+                  (mainBreakdown['halyk'] ?? 0) +
+                  (mainBreakdown['bcc'] ?? 0) +
+                  (mainBreakdown['rbk'] ?? 0) +
+                  (mainBreakdown['forte'] ?? 0) +
+                  (mainBreakdown['jusan'] ?? 0) +
+                  (mainBreakdown['bereke'] ?? 0))
+              .toDouble();
 
-      sheetObject.cell(CellIndex.indexByString('A12')).value = TextCellValue(
-        'Онлайн:',
+      sheetObject
+          .cell(
+            CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+          )
+          .value = TextCellValue(
+        'ДЕТАЛИЗАЦИЯ ОПЛАТ',
       );
-      sheetObject.cell(CellIndex.indexByString('A12')).cellStyle = totalStyle;
-      sheetObject.cell(CellIndex.indexByString('B12')).value = TextCellValue(
-        '${summary['onlineBookings'] ?? 0}',
-      );
+      sheetObject
+              .cell(
+                CellIndex.indexByColumnRow(
+                  columnIndex: 0,
+                  rowIndex: currentRow,
+                ),
+              )
+              .cellStyle =
+          headerStyle;
 
-      sheetObject.cell(CellIndex.indexByString('A13')).value = TextCellValue(
-        'Оффлайн:',
+      currentRow++;
+      sheetObject
+          .cell(
+            CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+          )
+          .value = TextCellValue(
+        'Наличные:',
       );
-      sheetObject.cell(CellIndex.indexByString('A13')).cellStyle = totalStyle;
-      sheetObject.cell(CellIndex.indexByString('B13')).value = TextCellValue(
-        '${summary['offlineBookings'] ?? 0}',
-      );
-
-      sheetObject.cell(CellIndex.indexByString('A15')).value = TextCellValue(
-        'КОМИССИЯ',
-      );
-      sheetObject.cell(CellIndex.indexByString('A15')).cellStyle = headerStyle;
-
-      sheetObject.cell(CellIndex.indexByString('A16')).value = TextCellValue(
-        'Комиссия платформы:',
-      );
-      sheetObject.cell(CellIndex.indexByString('A16')).cellStyle = totalStyle;
-      sheetObject.cell(CellIndex.indexByString('B16')).value = TextCellValue(
-        '${summary['platformCommission'] ?? 0} ₸',
-      );
-
-      final totalBookings = summary['totalBookings'] as int? ?? 0;
-      final grossRevenue = summary['grossRevenue'] as num? ?? 0;
-      final avgCheck = totalBookings > 0
-          ? (grossRevenue / totalBookings).toStringAsFixed(0)
-          : '0';
-
-      sheetObject.cell(CellIndex.indexByString('A17')).value = TextCellValue(
-        'Средний чек:',
-      );
-      sheetObject.cell(CellIndex.indexByString('A17')).cellStyle = totalStyle;
-      sheetObject.cell(CellIndex.indexByString('B17')).value = TextCellValue(
-        '$avgCheck ₸',
+      sheetObject
+          .cell(
+            CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: currentRow),
+          )
+          .value = TextCellValue(
+        '${mainBreakdown['cash'] ?? 0} ₸',
       );
 
+      currentRow++;
+      sheetObject
+          .cell(
+            CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+          )
+          .value = TextCellValue(
+        'Безнал (Всего):',
+      );
+      sheetObject
+          .cell(
+            CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: currentRow),
+          )
+          .value = TextCellValue(
+        '${totalBanks + (mainBreakdown['online'] ?? 0)} ₸',
+      );
+
+      currentRow++;
+      sheetObject
+          .cell(
+            CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+          )
+          .value = TextCellValue(
+        '   - Банки:',
+      );
+      sheetObject
+          .cell(
+            CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: currentRow),
+          )
+          .value = TextCellValue(
+        '$totalBanks ₸',
+      );
+
+      currentRow++;
+      sheetObject
+          .cell(
+            CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+          )
+          .value = TextCellValue(
+        '   - Онлайн (Платежка):',
+      );
+      sheetObject
+          .cell(
+            CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: currentRow),
+          )
+          .value = TextCellValue(
+        '${mainBreakdown['online'] ?? 0} ₸',
+      );
+
+      // --- 4. СТАТИСТИКА БРОНИРОВАНИЙ ---
+      currentRow += 2;
+      final bks = summary['bookings'] as Map<String, dynamic>? ?? {};
+      sheetObject
+          .cell(
+            CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+          )
+          .value = TextCellValue(
+        'СТАТИСТИКА БРОНИРОВАНИЙ',
+      );
+      sheetObject
+              .cell(
+                CellIndex.indexByColumnRow(
+                  columnIndex: 0,
+                  rowIndex: currentRow,
+                ),
+              )
+              .cellStyle =
+          headerStyle;
+
+      currentRow++;
+      sheetObject
+          .cell(
+            CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+          )
+          .value = TextCellValue(
+        'Всего / Онлайн / Оффлайн:',
+      );
+      sheetObject
+          .cell(
+            CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: currentRow),
+          )
+          .value = TextCellValue(
+        '${bks['total'] ?? 0} / ${bks['online'] ?? 0} / ${bks['offline'] ?? 0}',
+      );
+
+      // --- 5. ТАБЛИЦА ТРАНЗАКЦИЙ ---
+      currentRow += 2;
       List<String> headers = [
         '№',
         'Дата',
-        'Время начала',
-        'Время окончания',
+        'Время',
         'Клиент',
         'Арена',
         'Сумма',
-        'Тип оплаты',
+        'Наличные',
+        'Банк',
+        'Онлайн',
       ];
 
+      // Рисуем шапку таблицы
       for (int i = 0; i < headers.length; i++) {
         var cell = sheetObject.cell(
-          CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 19),
+          CellIndex.indexByColumnRow(columnIndex: i, rowIndex: currentRow),
         );
         cell.value = TextCellValue(headers[i]);
         cell.cellStyle = headerStyle;
       }
 
-      for (int i = 0; i < transactions.length; i++) {
-        final transaction = transactions[i];
-        final rowIndex = i + 20;
+      int dataStartRow = currentRow + 1;
 
-        final dateStr = transaction['date']?.toString() ?? '';
-        final date = dateStr.isNotEmpty
-            ? DateTime.tryParse(dateStr) ?? DateTime.now()
-            : DateTime.now();
+      // Цикл по всем транзакциям
+      for (int i = 0; i < transactions.length; i++) {
+        final t = transactions[i];
+        final rowBreakdown =
+            t['paymentBreakdown'] as Map<String, dynamic>? ?? {};
+
+        double amt = (t['amount'] ?? 0).toDouble();
+        double rowCash = (rowBreakdown['cash'] ?? 0).toDouble();
+        double rowOnline = (rowBreakdown['online'] ?? 0).toDouble();
+
+        // Суммируем банки внутри конкретной транзакции
+        double rowBanks =
+            ((rowBreakdown['kaspi'] ?? 0) +
+                    (rowBreakdown['halyk'] ?? 0) +
+                    (rowBreakdown['bcc'] ?? 0) +
+                    (rowBreakdown['rbk'] ?? 0) +
+                    (rowBreakdown['forte'] ?? 0) +
+                    (rowBreakdown['jusan'] ?? 0) +
+                    (rowBreakdown['bereke'] ?? 0))
+                .toDouble();
+
+        int r = dataStartRow + i;
 
         sheetObject
-            .cell(
-              CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex),
-            )
+            .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: r))
             .value = TextCellValue(
           '${i + 1}',
         );
-
         sheetObject
-            .cell(
-              CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex),
-            )
+            .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: r))
             .value = TextCellValue(
-          DateFormat('dd.MM.yyyy').format(date),
+          t['date']?.toString().split('T')[0] ?? '',
+        );
+        sheetObject
+            .cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: r))
+            .value = TextCellValue(
+          '${t['startTime']}-${t['endTime']}',
+        );
+        sheetObject
+            .cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: r))
+            .value = TextCellValue(
+          t['clientName'] ?? 'N/A',
+        );
+        sheetObject
+            .cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: r))
+            .value = TextCellValue(
+          t['arena'] ?? 'N/A',
+        );
+        sheetObject
+            .cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: r))
+            .value = TextCellValue(
+          '$amt',
         );
 
+        // Распределение суммы по колонкам
         sheetObject
-            .cell(
-              CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex),
-            )
+            .cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: r))
             .value = TextCellValue(
-          transaction['startTime']?.toString() ?? '',
+          rowCash > 0 ? '$rowCash' : '0',
         );
-
         sheetObject
-            .cell(
-              CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex),
-            )
+            .cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: r))
             .value = TextCellValue(
-          transaction['endTime']?.toString() ?? '',
+          rowBanks > 0 ? '$rowBanks' : '0',
         );
-
         sheetObject
-            .cell(
-              CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowIndex),
-            )
+            .cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: r))
             .value = TextCellValue(
-          transaction['clientName']?.toString() ?? 'N/A',
-        );
-
-        sheetObject
-            .cell(
-              CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: rowIndex),
-            )
-            .value = TextCellValue(
-          transaction['arena']?.toString() ?? 'N/A',
-        );
-
-        sheetObject
-            .cell(
-              CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: rowIndex),
-            )
-            .value = TextCellValue(
-          '${transaction['amount'] ?? 0}',
-        );
-
-        String paymentType = transaction['paymentType'] == 'online'
-            ? 'Онлайн'
-            : 'Оффлайн';
-        sheetObject
-            .cell(
-              CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: rowIndex),
-            )
-            .value = TextCellValue(
-          paymentType,
+          rowOnline > 0 ? '$rowOnline' : '0',
         );
       }
 
+      // --- ФИНАЛИЗАЦИЯ И СКАЧИВАНИЕ ---
       var fileBytes = excel.encode();
-
       if (fileBytes != null) {
         final blob = html.Blob([
           fileBytes,
@@ -654,7 +736,7 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
         final anchor = html.AnchorElement(href: url)
           ..setAttribute(
             'download',
-            'Финансы_${DateFormat('dd-MM-yyyy').format(DateTime.now())}.xlsx',
+            'Финансовый_отчет_${DateFormat('dd-MM-yyyy').format(DateTime.now())}.xlsx',
           )
           ..click();
         html.Url.revokeObjectUrl(url);
@@ -664,19 +746,17 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
             const SnackBar(
               content: Text('Excel файл успешно загружен'),
               backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
             ),
           );
         }
       }
     } catch (e) {
-      print('Error exporting to Excel: $e');
+      print('Excel Error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Ошибка при экспорте: $e'),
             backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -940,13 +1020,6 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
                         icon: const Icon(Icons.refresh),
                         onPressed: _refreshData,
                         tooltip: 'Обновить',
-                        iconSize: 28,
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: const Icon(Icons.download),
-                        onPressed: _exportToCsv,
-                        tooltip: 'Экспорт CSV',
                         iconSize: 28,
                       ),
                     ],
@@ -1447,16 +1520,17 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
         Text(
           label,
           style: TextStyle(
-            fontSize: isMobile ? 11 : 12,
+            fontSize: isMobile ? 12 : 16,
             fontWeight: FontWeight.w500,
             color: Colors.grey.shade700,
           ),
         ),
-        const Spacer(),
+        const SizedBox(width: 8),
+
         Text(
           _formatCurrency(amount, withSign: false),
           style: TextStyle(
-            fontSize: isMobile ? 12 : 13,
+            fontSize: isMobile ? 12 : 16,
             fontWeight: FontWeight.bold,
             color: color,
           ),
@@ -2529,7 +2603,7 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
           String formattedDateTime = '';
           if (paidAt.isNotEmpty) {
             try {
-              final dt = DateTime.parse(paidAt);
+              final dt = DateTime.parse(paidAt).toLocal();
               formattedDateTime = DateFormat(
                 'dd MMM yyyy, HH:mm',
                 'ru',
@@ -2594,11 +2668,139 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
                     color: methodColor,
                   ),
                 ),
+                if (method == 'Unknown') ...[
+                  SizedBox(width: isMobile ? 6 : 8),
+                  GestureDetector(
+                    onTap: () => _showUpdatePaymentMethodDialog(
+                      context,
+                      booking['id'] as String,
+                      payment['_id'] as String,
+                      amount,
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.orange.shade300),
+                      ),
+                      child: Text(
+                        'Уточнить',
+                        style: TextStyle(
+                          fontSize: isMobile ? 9 : 10,
+                          color: Colors.orange.shade700,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           );
         }).toList(),
       ],
+    );
+  }
+
+  void _showUpdatePaymentMethodDialog(
+    BuildContext context,
+    String bookingId,
+    String paymentId,
+    dynamic amount,
+  ) {
+    String selectedMethod = 'Cash';
+    final methods = [
+      'Cash',
+      'Kaspi',
+      'Halyk',
+      'BCC',
+      'Forte',
+      'RBK',
+      'Jusan',
+      'Bereke',
+    ];
+    final methodNames = {
+      'Cash': 'Наличные',
+      'Kaspi': 'Kaspi',
+      'Halyk': 'Halyk',
+      'BCC': 'БЦК',
+      'Forte': 'Forte',
+      'RBK': 'RBK',
+      'Jusan': 'Jusan',
+      'Bereke': 'Bereke',
+    };
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          title: const Text('Уточнить способ оплаты'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Сумма: ${_formatCurrency(amount)}'),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: selectedMethod,
+                items: methods
+                    .map(
+                      (m) => DropdownMenuItem(
+                        value: m,
+                        child: Text(methodNames[m] ?? m),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (val) => setState(() => selectedMethod = val!),
+                decoration: const InputDecoration(
+                  labelText: 'Способ оплаты',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Отмена'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                await _updatePaymentMethod(
+                  bookingId,
+                  paymentId,
+                  selectedMethod,
+                );
+              },
+              child: const Text('Сохранить'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _updatePaymentMethod(
+    String bookingId,
+    String paymentId,
+    String method,
+  ) async {
+    final now = DateTime.now();
+    final startDate = DateTime(now.year, now.month, 1);
+    final endDate = now;
+
+    context.read<FinanceBloc>().add(
+      FinanceUpdatePaymentMethod(
+        bookingId: bookingId,
+        paymentId: paymentId,
+        method: method,
+        startDate: startDate,
+        endDate: endDate,
+      ),
     );
   }
 

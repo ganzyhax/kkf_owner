@@ -47,3 +47,22 @@ class FinanceExportCSV extends FinanceEvent {
     this.arenaId,
   });
 }
+
+class FinanceUpdatePaymentMethod extends FinanceEvent {
+  final String bookingId;
+  final String paymentId;
+  final String method;
+  // чтобы после обновления перезагрузить с теми же датами
+  final DateTime startDate;
+  final DateTime endDate;
+  final String? arenaId;
+
+  FinanceUpdatePaymentMethod({
+    required this.bookingId,
+    required this.paymentId,
+    required this.method,
+    required this.startDate,
+    required this.endDate,
+    this.arenaId,
+  });
+}

@@ -15,6 +15,7 @@ class FinanceBloc extends Bloc<FinanceEvent, FinanceState> {
     on<FinanceSearch>(_onFinanceSearch);
     on<FinanceSort>(_onFinanceSort);
     on<FinanceExportCSV>(_onFinanceExportCSV);
+    on<FinanceUpdatePaymentMethod>(_onFinanceUpdatePaymentMethod); // ✅
   }
 
   // ==================== ЗАГРУЗИТЬ ФИНАНСЫ ====================
@@ -240,6 +241,31 @@ class FinanceBloc extends Bloc<FinanceEvent, FinanceState> {
     } catch (e) {
       log('Export CSV error: $e');
       emit(FinanceError('Ошибка при экспорте: ${e.toString()}'));
+    }
+  }
+
+  Future<void> _onFinanceUpdatePaymentMethod(
+    FinanceUpdatePaymentMethod event,
+    Emitter<FinanceState> emit,
+  ) async {
+    try {
+      final response = await ApiClient.patch(
+        'api/bookings/${event.bookingId}/payment/${event.paymentId}/method',
+        {'method': event.method},
+      );
+
+      if (response['success'] == true) {
+        // Перезагружаем с теми же параметрами
+        add(
+          FinanceLoad(
+            startDate: event.startDate,
+            endDate: event.endDate,
+            arenaId: event.arenaId,
+          ),
+        );
+      }
+    } catch (e) {
+      log('Error updating payment method: $e');
     }
   }
 }
