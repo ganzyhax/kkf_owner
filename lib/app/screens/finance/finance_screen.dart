@@ -52,6 +52,7 @@ class _FinanceDashboardContent extends StatefulWidget {
 class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
   DateTime startDate = DateTime(DateTime.now().year, DateTime.now().month, 1);
   DateTime endDate = DateTime.now();
+  String _selectedPeriod = 'month'; // 'today', 'month', 'custom'
 
   String searchQuery = '';
   String sortOption = 'dateDesc';
@@ -69,6 +70,25 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
         arenaId: selectedArenaId,
       ),
     );
+  }
+
+  void _setToday() {
+    setState(() {
+      startDate = DateTime.now();
+      endDate = DateTime.now();
+      _selectedPeriod = 'today';
+    });
+    _loadData();
+  }
+
+  void _setThisMonth() {
+    final now = DateTime.now();
+    setState(() {
+      startDate = DateTime(now.year, now.month, 1);
+      endDate = now; // ✅ ИСПРАВЛЕНО - до сегодня, а не до конца месяца
+      _selectedPeriod = 'month';
+    });
+    _loadData();
   }
 
   Future<void> _refreshData() async {
@@ -307,6 +327,8 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
                                       setState(() {
                                         startDate = tempStartDate!;
                                         endDate = tempEndDate!;
+                                        _selectedPeriod =
+                                            'custom'; // ✅ ДОБАВЬ ЭТО
                                       });
                                       _loadData();
                                     }
@@ -632,15 +654,21 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
       // --- 5. ТАБЛИЦА ТРАНЗАКЦИЙ ---
       currentRow += 2;
       List<String> headers = [
-        '№',
-        'Дата',
-        'Время',
-        'Клиент',
-        'Арена',
-        'Сумма',
-        'Наличные',
-        'Банк',
-        'Онлайн',
+        '№', // 0
+        'Дата', // 1
+        'Время', // 2
+        'Клиент', // 3
+        'Арена', // 4
+        'Цена до скидки', // 5 — было пусто
+        'Скидка %', // 6
+        'Сумма скидки', // 7
+        'Статус', // 8 — было на месте скидки
+        'Сумма', // 9
+        'Наличные', // 10
+        'Банк', // 11
+        'Онлайн', // 12
+        'Возвращено', // 13
+        'Удержано', // 14
       ];
 
       // Рисуем шапку таблицы
@@ -660,7 +688,7 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
         final rowBreakdown =
             t['paymentBreakdown'] as Map<String, dynamic>? ?? {};
 
-        double amt = (t['amount'] ?? 0).toDouble();
+        double amt = (t['totalPrice'] ?? 0).toDouble();
         double rowCash = (rowBreakdown['cash'] ?? 0).toDouble();
         double rowOnline = (rowBreakdown['online'] ?? 0).toDouble();
 
@@ -705,24 +733,74 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
         sheetObject
             .cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: r))
             .value = TextCellValue(
-          '$amt',
+          '${(t['priceBeforeDiscount'] ?? 0).toDouble()}',
         );
 
-        // Распределение суммы по колонкам
+        // Скидка % — 6 (было 7)
         sheetObject
             .cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: r))
             .value = TextCellValue(
-          rowCash > 0 ? '$rowCash' : '0',
+          '${(t['discountPercent'] ?? 0).toDouble()}%',
         );
+
+        // Сумма скидки — 7 (было 8)
         sheetObject
             .cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: r))
             .value = TextCellValue(
-          rowBanks > 0 ? '$rowBanks' : '0',
+          '${(t['discountAmount'] ?? 0).toDouble()}',
         );
+
+        // Статус — 8 (было 9)
         sheetObject
             .cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: r))
             .value = TextCellValue(
+          t['bookingStatus'] == 'Cancelled'
+              ? 'Отменено'
+              : t['bookingStatus'] == 'Completed'
+              ? 'Завершено'
+              : 'Активно',
+        );
+
+        // Сумма — 9 (было 10)
+        sheetObject
+            .cell(CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: r))
+            .value = TextCellValue(
+          '$amt',
+        );
+
+        // Наличные — 10 (было 11)
+        sheetObject
+            .cell(CellIndex.indexByColumnRow(columnIndex: 10, rowIndex: r))
+            .value = TextCellValue(
+          rowCash > 0 ? '$rowCash' : '0',
+        );
+
+        // Банк — 11 (было 12)
+        sheetObject
+            .cell(CellIndex.indexByColumnRow(columnIndex: 11, rowIndex: r))
+            .value = TextCellValue(
+          rowBanks > 0 ? '$rowBanks' : '0',
+        );
+
+        // Онлайн — 12 (было 13)
+        sheetObject
+            .cell(CellIndex.indexByColumnRow(columnIndex: 12, rowIndex: r))
+            .value = TextCellValue(
           rowOnline > 0 ? '$rowOnline' : '0',
+        );
+
+        // Возвращено — 13 (было 14)
+        sheetObject
+            .cell(CellIndex.indexByColumnRow(columnIndex: 13, rowIndex: r))
+            .value = TextCellValue(
+          '${(t['refundAmount'] ?? 0).toDouble()}',
+        );
+
+        // Удержано — 14 (было 15)
+        sheetObject
+            .cell(CellIndex.indexByColumnRow(columnIndex: 14, rowIndex: r))
+            .value = TextCellValue(
+          '${(t['retainedAmount'] ?? 0).toDouble()}',
         );
       }
 
@@ -929,6 +1007,72 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
                     style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
                   ),
                   const SizedBox(height: 12),
+                  // ✅ КНОПКИ БЫСТРОГО ВЫБОРА
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _setToday,
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            backgroundColor: _selectedPeriod == 'today'
+                                ? Colors.blue.shade50
+                                : Colors.white,
+                            foregroundColor: _selectedPeriod == 'today'
+                                ? Colors.blue.shade700
+                                : Colors.grey.shade700,
+                            side: BorderSide(
+                              color: _selectedPeriod == 'today'
+                                  ? Colors.blue.shade300
+                                  : Colors.grey.shade300,
+                              width: _selectedPeriod == 'today' ? 2 : 1,
+                            ),
+                          ),
+                          child: Text(
+                            'Сегодня',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: _selectedPeriod == 'today'
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _setThisMonth,
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            backgroundColor: _selectedPeriod == 'month'
+                                ? Colors.blue.shade50
+                                : Colors.white,
+                            foregroundColor: _selectedPeriod == 'month'
+                                ? Colors.blue.shade700
+                                : Colors.grey.shade700,
+                            side: BorderSide(
+                              color: _selectedPeriod == 'month'
+                                  ? Colors.blue.shade300
+                                  : Colors.grey.shade300,
+                              width: _selectedPeriod == 'month' ? 2 : 1,
+                            ),
+                          ),
+                          child: Text(
+                            'Месяц',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: _selectedPeriod == 'month'
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
                   Row(
                     children: [
                       Expanded(
@@ -992,6 +1136,71 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
                             fontSize: 16,
                             color: Colors.grey.shade600,
                           ),
+                        ),
+                        const SizedBox(height: 8),
+                        // ✅ КНОПКИ БЫСТРОГО ВЫБОРА
+                        Row(
+                          children: [
+                            OutlinedButton(
+                              onPressed: _setToday,
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 10,
+                                ),
+                                backgroundColor: _selectedPeriod == 'today'
+                                    ? Colors.blue.shade50
+                                    : Colors.white,
+                                foregroundColor: _selectedPeriod == 'today'
+                                    ? Colors.blue.shade700
+                                    : Colors.grey.shade700,
+                                side: BorderSide(
+                                  color: _selectedPeriod == 'today'
+                                      ? Colors.blue.shade300
+                                      : Colors.grey.shade300,
+                                  width: _selectedPeriod == 'today' ? 2 : 1,
+                                ),
+                              ),
+                              child: Text(
+                                'Сегодня',
+                                style: TextStyle(
+                                  fontWeight: _selectedPeriod == 'today'
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            OutlinedButton(
+                              onPressed: _setThisMonth,
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 10,
+                                ),
+                                backgroundColor: _selectedPeriod == 'month'
+                                    ? Colors.blue.shade50
+                                    : Colors.white,
+                                foregroundColor: _selectedPeriod == 'month'
+                                    ? Colors.blue.shade700
+                                    : Colors.grey.shade700,
+                                side: BorderSide(
+                                  color: _selectedPeriod == 'month'
+                                      ? Colors.blue.shade300
+                                      : Colors.grey.shade300,
+                                  width: _selectedPeriod == 'month' ? 2 : 1,
+                                ),
+                              ),
+                              child: Text(
+                                'Месяц',
+                                style: TextStyle(
+                                  fontWeight: _selectedPeriod == 'month'
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -2500,15 +2709,56 @@ class _FinanceDashboardContentState extends State<_FinanceDashboardContent> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
+                  if ((booking['discountPercent'] ?? 0) > 0) ...[
+                    Text(
+                      _formatCurrency(
+                        booking['priceBeforeDiscount'] ?? totalPrice,
+                      ),
+                      style: TextStyle(
+                        fontSize: isMobile ? 12 : 13,
+                        color: Colors.grey,
+                        decoration: TextDecoration.lineThrough,
+                      ),
+                    ),
+                    Text(
+                      'Скидка ${booking['discountPercent']}% (-${_formatCurrency(booking['discountAmount'] ?? 0)})',
+                      style: TextStyle(
+                        fontSize: isMobile ? 10 : 11,
+                        color: Colors.red,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                   Text(
-                    _formatCurrency(totalPrice),
+                    _formatCurrency(
+                      bookingStatus == 'Cancelled' ? prepaidAmount : totalPrice,
+                    ),
                     style: TextStyle(
                       fontSize: isMobile ? 16 : 18,
                       fontWeight: FontWeight.bold,
                       color: statusColor,
                     ),
                   ),
-                  if (remainingAmount > 0) ...[
+                  if (bookingStatus == 'Cancelled' && prepaidAmount > 0) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      'Возвращено: ${_formatCurrency(booking['refundAmount'] ?? 0)}',
+                      style: TextStyle(
+                        fontSize: isMobile ? 10 : 11,
+                        color: Colors.red,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if ((booking['retainedAmount'] ?? 0) > 0)
+                      Text(
+                        'Удержано: ${_formatCurrency(booking['retainedAmount'] ?? 0)}',
+                        style: TextStyle(
+                          fontSize: isMobile ? 10 : 11,
+                          color: Colors.green,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                  ] else if (remainingAmount > 0) ...[
                     const SizedBox(height: 2),
                     Text(
                       'Осталось: ${_formatCurrency(remainingAmount)}',

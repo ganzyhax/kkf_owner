@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -1222,7 +1224,7 @@ class _BookingsOverviewWidgetState extends State<BookingsOverviewWidget> {
         Colors.green,
       ),
       _StatCardData(
-        'Оплачено',
+        'Получено',
         '${statistics['totalPrepaid'] ?? 0} ₸',
         Icons.check_circle,
         Colors.teal,
@@ -1310,6 +1312,7 @@ class _BookingsOverviewWidgetState extends State<BookingsOverviewWidget> {
   }
 
   Widget _buildBookingCard(Map<String, dynamic> booking, bool isMobile) {
+    log('ADADAD ' + booking.toString());
     final arenaName = booking['arenaName'] ?? 'Неизвестная арена';
     final date = booking['date'] ?? '';
     final time = booking['time'] ?? '';
@@ -1321,7 +1324,8 @@ class _BookingsOverviewWidgetState extends State<BookingsOverviewWidget> {
     final paymentStatus = booking['paymentStatus'] ?? 'Unpaid';
     final bookingStatus = booking['status'] ?? 'Pending';
     final isOffline = booking['isOfflineBooking'] ?? false;
-
+    final retainedAmount = booking['retainedAmount'] ?? 0;
+    final refundAmount = booking['refundAmount'] ?? 0;
     // ✅ ПОЛУЧАЕМ PAYMENT HISTORY
     final paymentHistory = booking['paymentHistory'] as List<dynamic>? ?? [];
 
@@ -1442,6 +1446,9 @@ class _BookingsOverviewWidgetState extends State<BookingsOverviewWidget> {
               remainingAmount,
               paymentHistory,
               booking,
+              bookingStatus, // ← добавь
+              refundAmount, // ← добавь
+              retainedAmount, // ← добавь
             )
           else
             _buildDesktopContent(
@@ -1455,6 +1462,9 @@ class _BookingsOverviewWidgetState extends State<BookingsOverviewWidget> {
               remainingAmount,
               paymentHistory,
               booking,
+              bookingStatus, // ← добавь
+              refundAmount, // ← добавь
+              retainedAmount, // ← добавь
             ),
         ],
       ),
@@ -1472,8 +1482,16 @@ class _BookingsOverviewWidgetState extends State<BookingsOverviewWidget> {
     num prepaidAmount,
     num remainingAmount,
     List<dynamic> paymentHistory,
-    var booking,
+    Map<String, dynamic> booking, // Changed to Map for better type safety
+    String bookingStatus, // ← добавь
+    num refundAmount, // ← добавь
+    num retainedAmount, // ← добавь
   ) {
+    // ✅ Extract the values that were causing 'Undefined name' errors
+    final bookingStatus = booking['status'] ?? 'Pending';
+    final refundAmount = booking['refundAmount'] ?? 0;
+    final retainedAmount = booking['retainedAmount'] ?? 0;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1509,6 +1527,25 @@ class _BookingsOverviewWidgetState extends State<BookingsOverviewWidget> {
         ),
 
         const SizedBox(height: 12),
+        if ((booking['discountPercent'] ?? 0) > 0) ...[
+          Text(
+            '${booking['priceBeforeDiscount'] ?? totalPrice} ₸',
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.grey,
+              decoration: TextDecoration.lineThrough,
+            ),
+          ),
+          Text(
+            'Скидка ${booking['discountPercent']}%',
+            style: const TextStyle(fontSize: 10, color: Colors.red),
+          ),
+        ],
+        Text(
+          '${bookingStatus == 'Cancelled' ? prepaidAmount : totalPrice} ₸',
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
 
         // Статус и цена
         Row(
@@ -1532,13 +1569,31 @@ class _BookingsOverviewWidgetState extends State<BookingsOverviewWidget> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  '$totalPrice ₸',
+                  '${bookingStatus == 'Cancelled' ? prepaidAmount : totalPrice} ₸',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                if (remainingAmount > 0)
+                if (bookingStatus == 'Cancelled' && prepaidAmount > 0) ...[
+                  Text(
+                    'Возвращено: $refundAmount ₸',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: Colors.red,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (retainedAmount > 0)
+                    Text(
+                      'Удержано: $retainedAmount ₸',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Colors.green,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                ] else if (remainingAmount > 0)
                   Text(
                     'Осталось: $remainingAmount ₸',
                     style: const TextStyle(
@@ -1564,6 +1619,8 @@ class _BookingsOverviewWidgetState extends State<BookingsOverviewWidget> {
   }
 
   // ✅ DESKTOP LAYOUT
+  // ✅ FIXED DESKTOP LAYOUT
+  // ✅ DESKTOP LAYOUT FIXED
   Widget _buildDesktopContent(
     String clientName,
     String clientPhone,
@@ -1574,8 +1631,16 @@ class _BookingsOverviewWidgetState extends State<BookingsOverviewWidget> {
     num prepaidAmount,
     num remainingAmount,
     List<dynamic> paymentHistory,
-    booking,
+    Map<String, dynamic> booking, // Указываем тип Map
+    String bookingStatus, // ← добавь
+    num refundAmount, // ← добавь
+    num retainedAmount, // ← добавь
   ) {
+    // ✅ ИЗВЛЕКАЕМ ДАННЫЕ ИЗ MAP (исправляет ошибки Undefined name)
+    final bookingStatus = booking['status'] ?? 'Pending';
+    final refundAmount = booking['refundAmount'] ?? 0;
+    final retainedAmount = booking['retainedAmount'] ?? 0;
+
     return Column(
       children: [
         Row(
@@ -1635,14 +1700,49 @@ class _BookingsOverviewWidgetState extends State<BookingsOverviewWidget> {
                   ],
                 ),
                 const SizedBox(height: 8),
+                if ((booking['discountPercent'] ?? 0) > 0) ...[
+                  Text(
+                    '${booking['priceBeforeDiscount'] ?? totalPrice} ₸',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                      decoration: TextDecoration.lineThrough,
+                    ),
+                  ),
+                  Text(
+                    'Скидка ${booking['discountPercent']}%',
+                    style: const TextStyle(fontSize: 10, color: Colors.red),
+                  ),
+                ],
                 Text(
-                  '$totalPrice ₸',
+                  '${bookingStatus == 'Cancelled' ? prepaidAmount : totalPrice} ₸',
                   style: const TextStyle(
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                if (remainingAmount > 0) ...[
+                const SizedBox(height: 8),
+
+                if (bookingStatus == 'Cancelled' && prepaidAmount > 0) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Возвращено: $refundAmount ₸',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Colors.green,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (retainedAmount > 0)
+                    Text(
+                      'Удержано: $retainedAmount ₸',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.red,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                ] else if (remainingAmount > 0) ...[
                   const SizedBox(height: 2),
                   Text(
                     'Осталось: $remainingAmount ₸',

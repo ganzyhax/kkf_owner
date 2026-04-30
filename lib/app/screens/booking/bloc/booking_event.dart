@@ -18,9 +18,11 @@ class BookingCreateOffline extends BookingEvent {
   final double totalPrice;
   final double prepaidAmount;
   final bool isFullyPaid;
+  final double discountPercent;
   final String paymentMethod; // Новое поле с фиксированным значением
   BookingCreateOffline({
     required this.arenaId,
+    required this.discountPercent,
     required this.startTime,
     required this.endTime,
     required this.clientName,

@@ -37,38 +37,44 @@ class _BookingPageContentState extends State<_BookingPageContent> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _selectToday(); // Загрузка данных за сегодня при старте
+      _selectMonth(); // ← было _selectToday()
     });
-  }
-
-  void _loadBookings() {
-    // Формат YYYY-MM-DD исключает ошибки интерпретации месяца/дня на бэкенде
-    final startStr = DateFormat('yyyy-MM-dd').format(_startDate);
-    final endStr = DateFormat('yyyy-MM-dd').format(_endDate);
-
-    context.read<BookingBloc>().add(
-      BookingGetByPeriod(startDate: startStr, endDate: endStr),
-    );
   }
 
   void _selectToday() {
     final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
     setState(() {
-      _startDate = DateTime(now.year, now.month, now.day);
-      _endDate = DateTime(now.year, now.month, now.day);
+      _startDate = today;
+      _endDate = today;
       _activeFilter = 'today';
     });
-    _loadBookings();
+
+    _loadBookings(start: today, end: today);
   }
 
   void _selectMonth() {
     final now = DateTime.now();
+    final start = DateTime(now.year, now.month, 1);
+    final end = DateTime(now.year, now.month + 1, 0);
+
     setState(() {
-      _startDate = DateTime(now.year, now.month, 1);
-      _endDate = DateTime(now.year, now.month + 1, 0); // Последний день месяца
+      _startDate = start;
+      _endDate = end;
       _activeFilter = 'month';
     });
-    _loadBookings();
+
+    _loadBookings(start: start, end: end);
+  }
+
+  void _loadBookings({DateTime? start, DateTime? end}) {
+    final startStr = DateFormat('yyyy-MM-dd').format(start ?? _startDate);
+    final endStr = DateFormat('yyyy-MM-dd').format(end ?? _endDate);
+
+    context.read<BookingBloc>().add(
+      BookingGetByPeriod(startDate: startStr, endDate: endStr),
+    );
   }
 
   Future<void> _selectCustomRange() async {

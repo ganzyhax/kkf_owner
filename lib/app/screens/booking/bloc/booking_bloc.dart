@@ -53,7 +53,8 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
           'clientPhone': event.clientPhone,
           'prepaidAmount': event.prepaidAmount,
           'totalPrice': event.totalPrice,
-          'paymentMethod': event.paymentMethod, // ✅ ДОБАВЬТЕ ЭТО
+          'paymentMethod': event.paymentMethod,
+          'discountPercent': event.discountPercent, // ← добавь
         };
 
         log('Creating offline booking: $body');
@@ -139,8 +140,14 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
     });
     on<BookingGetByPeriod>((event, emit) async {
       try {
-        emit(BookingLoading());
+        log(
+          'DATES SENT: startDate=${event.startDate} endDate=${event.endDate}',
+        );
 
+        emit(BookingLoading());
+        log(
+          'api/bookings/owner/by-period?startDate=${event.startDate}&endDate=${event.endDate}',
+        );
         var res = await ApiClient.get(
           'api/bookings/owner/by-period?startDate=${event.startDate}&endDate=${event.endDate}',
         );

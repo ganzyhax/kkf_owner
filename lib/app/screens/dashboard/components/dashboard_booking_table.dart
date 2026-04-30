@@ -518,6 +518,19 @@ class BookingsTable extends StatelessWidget {
                         _buildDetailCard(
                           'Финансовая информация',
                           [
+                            if ((booking['discountPercent'] ?? 0) > 0) ...[
+                              _buildDetailRow(
+                                'Цена до скидки',
+                                '${booking['priceBeforeDiscount']} ₸',
+                                color: Colors.grey,
+                              ),
+                              _buildDetailRow(
+                                'Скидка ${booking['discountPercent']}%',
+                                '- ${booking['discountAmount']} ₸',
+                                color: Colors.red,
+                                bold: true,
+                              ),
+                            ],
                             _buildDetailRow(
                               'Общая сумма',
                               '${booking['totalPrice']} ₸',

@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -20,7 +22,9 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
   final _clientNameController = TextEditingController();
   final _clientPhoneController = TextEditingController();
   final _prepaidAmountController = TextEditingController();
-
+  double discountPercent = 0;
+  double discountAmount = 0;
+  double finalPrice = 0;
   // ✅ НОВАЯ ЛОГИКА: Наличные или Перевод
   String paymentType = 'Cash'; // 'Cash' или 'Transfer'
   String? selectedBank; // Выбранный банк (если Transfer)
@@ -74,6 +78,7 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
             selectedArena = arenaState.arenas.firstWhere(
               (arena) => arena['_id'] == arenaId,
             );
+            log(selectedArena!['prices'].toString() + 'asdasdasd');
           } catch (e) {
             selectedArena = null;
           }
@@ -93,6 +98,7 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
     }
 
     final prices = selectedArena!['prices'] as Map<String, dynamic>?;
+
     if (prices == null) {
       totalPrice = 0;
       return;
@@ -116,22 +122,26 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
     }
 
     double sum = 0;
-    for (final hour in selectedHours) {
-      final hourKey = '${hour.toString().padLeft(2, '0')}:00';
+    for (final slot in selectedHours) {
+      final h = slot ~/ 2;
+      final hourKey = '${h.toString().padLeft(2, '0')}:00';
       final price = dayPrices[hourKey];
       if (price != null) {
         final priceValue = (price is int)
             ? price.toDouble()
             : (price as double);
-        hourlyPrices[hour] = priceValue;
-        sum += priceValue;
+        final slotPrice = priceValue / 2; // ← делим на 2 для 30 мин
+        hourlyPrices[slot] = slotPrice;
+        sum += slotPrice;
       }
     }
 
     setState(() {
       totalPrice = sum;
+      discountAmount = sum * discountPercent / 100;
+      finalPrice = sum - discountAmount;
       if (isFullyPaid) {
-        _prepaidAmountController.text = totalPrice.toInt().toString();
+        _prepaidAmountController.text = finalPrice.toInt().toString();
       }
     });
   }
@@ -156,7 +166,7 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
         return;
       }
 
-      if (selectedHours.length < 2) {
+      if (selectedHours.length < 4) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Выберите минимум 2 часа'),
@@ -187,21 +197,22 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
         return;
       }
 
-      final startHour = selectedHours.first;
-      final endHour = selectedHours.last + 1;
+      final startSlot = selectedHours.first;
+      final endSlot = selectedHours.last + 1;
 
       final startTime = DateTime(
         selectedDate.year,
         selectedDate.month,
         selectedDate.day,
-        startHour,
+        startSlot ~/ 2,
+        startSlot % 2 == 0 ? 0 : 30,
       );
-
       final endTime = DateTime(
         selectedDate.year,
         selectedDate.month,
         selectedDate.day,
-        endHour,
+        endSlot ~/ 2,
+        endSlot % 2 == 0 ? 0 : 30,
       );
 
       final prepaidAmount = double.tryParse(_prepaidAmountController.text) ?? 0;
@@ -222,6 +233,7 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
           totalPrice: totalPrice,
           prepaidAmount: prepaidAmount,
           isFullyPaid: isFullyPaid,
+          discountPercent: discountPercent, // ← добавь
         ),
       );
 
@@ -238,7 +250,7 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final canBook = selectedHours.length >= 2 && selectedArenaId != null;
+    final canBook = selectedHours.length >= 4 && selectedArenaId != null;
     final screenSize = MediaQuery.of(context).size;
     final screenWidth = screenSize.width;
     final screenHeight = screenSize.height;
@@ -546,12 +558,12 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
     return Container(
       padding: EdgeInsets.all(isMobile ? 16 : 20),
       decoration: BoxDecoration(
-        color: selectedHours.length >= 2
+        color: selectedHours.length >= 4
             ? Colors.green.shade50
             : Colors.orange.shade50,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: selectedHours.length >= 2
+          color: selectedHours.length >= 4
               ? Colors.green.shade200
               : Colors.orange.shade200,
         ),
@@ -562,8 +574,8 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
           Row(
             children: [
               Icon(
-                selectedHours.length >= 2 ? Icons.check_circle : Icons.warning,
-                color: selectedHours.length >= 2 ? Colors.green : Colors.orange,
+                selectedHours.length >= 4 ? Icons.check_circle : Icons.warning,
+                color: selectedHours.length >= 4 ? Colors.green : Colors.orange,
                 size: isMobile ? 20 : 24,
               ),
               SizedBox(width: isMobile ? 8 : 12),
@@ -572,13 +584,13 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Выбрано: ${selectedHours.length} час${selectedHours.length > 1 ? 'ов' : ''}',
+                      'Выбрано: ${selectedHours.length * 0.5} ч (${selectedHours.length} слотов)',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: isMobile ? 14 : 16,
                       ),
                     ),
-                    if (selectedHours.length < 2)
+                    if (selectedHours.length < 4)
                       Text(
                         'Минимум 2 часа',
                         style: TextStyle(
@@ -594,7 +606,7 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
                 style: TextStyle(
                   fontSize: isMobile ? 20 : 24,
                   fontWeight: FontWeight.bold,
-                  color: selectedHours.length >= 2
+                  color: selectedHours.length >= 4
                       ? Colors.green
                       : Colors.orange,
                 ),
@@ -605,15 +617,20 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
           const Divider(),
           SizedBox(height: isMobile ? 6 : 8),
 
-          ...selectedHours.map((hour) {
-            final price = hourlyPrices[hour] ?? 0;
+          ...selectedHours.map((slot) {
+            final price = hourlyPrices[slot] ?? 0;
+            final h = slot ~/ 2;
+            final m = slot % 2 == 0 ? '00' : '30';
+            final nextSlot = slot + 1;
+            final nh = nextSlot ~/ 2;
+            final nm = nextSlot % 2 == 0 ? '00' : '30';
             return Padding(
               padding: EdgeInsets.symmetric(vertical: isMobile ? 3 : 4),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '$hour:00 - ${hour + 1}:00',
+                    '${h.toString().padLeft(2, '0')}:$m - ${nh.toString().padLeft(2, '0')}:$nm',
                     style: TextStyle(fontSize: isMobile ? 13 : 14),
                   ),
                   Text(
@@ -739,7 +756,82 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
                 return null;
               },
             ),
+            SizedBox(height: isMobile ? 12 : 16),
+            if (discountPercent > 0) ...[
+              const Divider(),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Скидка $discountPercent%:',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                  Text(
+                    '- ${discountAmount.toInt()} ₸',
+                    style: const TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Итого:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    '${finalPrice.toInt()} ₸',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            SizedBox(height: isMobile ? 12 : 16),
 
+            Text(
+              'Скидка',
+              style: TextStyle(
+                fontSize: isMobile ? 14 : 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: Slider(
+                    value: discountPercent,
+                    min: 0,
+                    max: 50,
+                    divisions: 10,
+                    label: '${discountPercent.toInt()}%',
+                    onChanged: (value) {
+                      setState(() {
+                        discountPercent = value;
+                        _calculateTotalPrice();
+                      });
+                    },
+                  ),
+                ),
+                SizedBox(
+                  width: 60,
+                  child: Text(
+                    '${discountPercent.toInt()}%',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            ),
             SizedBox(height: isMobile ? 12 : 16),
 
             CheckboxListTile(
@@ -761,7 +853,7 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
                 style: TextStyle(fontSize: isMobile ? 14 : 16),
               ),
               subtitle: Text(
-                'Предоплата = ${totalPrice.toInt()} ₸',
+                '${finalPrice.toInt()} ₸',
                 style: TextStyle(fontSize: isMobile ? 12 : 14),
               ),
               controlAffinity: ListTileControlAffinity.leading,

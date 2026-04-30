@@ -1,5 +1,7 @@
 // lib/screens/booking/components/time_slots_grid.dart (СОВРЕМЕННАЯ ВЕРСИЯ)
 
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -54,57 +56,65 @@ class _TimeSlotsGridState extends State<TimeSlotsGrid> {
     );
   }
 
-  bool _isPastTime(int hour) {
+  // _isPastTime
+  bool _isPastTime(int slot) {
     final now = DateTime.now();
-    final selectedDateTime = DateTime(
+    final h = slot ~/ 2;
+    final m = slot % 2 == 0 ? 0 : 30;
+    final slotTime = DateTime(
       widget.selectedDate.year,
       widget.selectedDate.month,
       widget.selectedDate.day,
-      hour,
+      h,
+      m,
     );
-    return selectedDateTime.isBefore(now);
+    return slotTime.isBefore(now);
   }
 
-  bool _isSlotSelectable(int hour) {
-    final isPast = _isPastTime(hour);
-    final isBooked = bookedDetails.containsKey(hour);
+  bool _isSlotSelectable(int slot) {
+    final isPast = _isPastTime(slot);
+    final isBooked = bookedDetails.containsKey(slot);
     final isCancelled =
-        isBooked && bookedDetails[hour]!['status'] == 'Cancelled';
+        isBooked && bookedDetails[slot]!['status'] == 'Cancelled';
 
     return !isPast && (!isBooked || isCancelled);
   }
 
-  void toggle(int hour) {
-    if (!_isSlotSelectable(hour)) return;
+  String _slotToTime(int slot) {
+    final h = (slot ~/ 2).toString().padLeft(2, '0');
+    final m = slot % 2 == 0 ? '00' : '30';
+    return '$h:$m';
+  }
 
+  void toggle(int slot) {
+    if (!_isSlotSelectable(slot)) return;
     setState(() {
       if (selected.isEmpty) {
-        selected = [hour];
+        selected = [slot];
       } else {
         final min = selected.first;
         final max = selected.last;
-        final inRange = hour == min - 1 || hour == max + 1;
-
+        final inRange = slot == min - 1 || slot == max + 1;
         if (inRange) {
-          selected.add(hour);
+          selected.add(slot);
           selected.sort();
-        } else if (selected.contains(hour)) {
-          selected.remove(hour);
+        } else if (selected.contains(slot)) {
+          selected.remove(slot);
         } else {
-          selected = [hour];
+          selected = [slot];
         }
       }
     });
     widget.onSelectionChanged(selected);
   }
 
-  Widget _buildTimeSlot(int hour, double width) {
-    final isPast = _isPastTime(hour);
-    final isBooked = bookedDetails.containsKey(hour);
-    final isSelected = selected.contains(hour);
+  Widget _buildTimeSlot(int slot, double width) {
+    final isPast = _isPastTime(slot);
+    final isBooked = bookedDetails.containsKey(slot);
+    final isSelected = selected.contains(slot);
     final isCancelled =
-        isBooked && bookedDetails[hour]!['status'] == 'Cancelled';
-    final isSelectable = _isSlotSelectable(hour);
+        isBooked && bookedDetails[slot]!['status'] == 'Cancelled';
+    final isSelectable = _isSlotSelectable(slot);
 
     // 🎨 СОВРЕМЕННАЯ ЦВЕТОВАЯ СХЕМА
     Color containerColor;
@@ -161,9 +171,9 @@ class _TimeSlotsGridState extends State<TimeSlotsGrid> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: isSelectable ? () => toggle(hour) : null,
+          onTap: isSelectable ? () => toggle(slot) : null,
           onLongPress: isBooked
-              ? () => _showBookingDetails(bookedDetails[hour]!)
+              ? () => _showBookingDetails(bookedDetails[slot]!)
               : null,
           borderRadius: BorderRadius.circular(12),
           child: Container(
@@ -195,7 +205,8 @@ class _TimeSlotsGridState extends State<TimeSlotsGrid> {
               children: [
                 // 🕒 ВРЕМЯ
                 Text(
-                  '${hour.toString().padLeft(2, '0')}:00',
+                  _slotToTime(slot), // ← было HH:00
+
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: textColor,
@@ -209,7 +220,7 @@ class _TimeSlotsGridState extends State<TimeSlotsGrid> {
                 if (isBooked) ...[
                   // 👤 ИМЯ КЛИЕНТА
                   Text(
-                    bookedDetails[hour]!['clientName'] ?? 'Гость',
+                    bookedDetails[slot]!['clientName'] ?? 'Гость',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: textColor,
                       fontWeight: FontWeight.w500,
@@ -225,7 +236,7 @@ class _TimeSlotsGridState extends State<TimeSlotsGrid> {
                   // 📞 ТЕЛЕФОН ИЛИ СТАТУС
                   if (!isCancelled)
                     Text(
-                      _formatPhone(bookedDetails[hour]!['phone'], width),
+                      _formatPhone(bookedDetails[slot]!['phone'], width),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: textColor.withOpacity(0.7),
                         fontSize: isVeryCompact ? 7 : (isCompact ? 9 : 11),
@@ -254,15 +265,15 @@ class _TimeSlotsGridState extends State<TimeSlotsGrid> {
                       ),
                       decoration: BoxDecoration(
                         color: _getPaymentStatusColor(
-                          bookedDetails[hour]!['paymentStatus'],
+                          bookedDetails[slot]!['paymentStatus'],
                         ).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        _getPaymentText(bookedDetails[hour]!['paymentStatus']),
+                        _getPaymentText(bookedDetails[slot]!['paymentStatus']),
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: _getPaymentStatusColor(
-                            bookedDetails[hour]!['paymentStatus'],
+                            bookedDetails[slot]!['paymentStatus'],
                           ),
                           fontWeight: FontWeight.w500,
                           fontSize: isVeryCompact ? 6 : (isCompact ? 8 : 10),
@@ -290,6 +301,9 @@ class _TimeSlotsGridState extends State<TimeSlotsGrid> {
     final isCancelled = details['status'] == 'Cancelled';
     final refundAmount = details['refundAmount'] ?? 0;
     final retainedAmount = details['retainedAmount'] ?? 0;
+    final discountPercent = details['discountPercent'] ?? 0;
+    final discountAmount = details['discountAmount'] ?? 0;
+    final priceBeforeDiscount = details['priceBeforeDiscount'] ?? 0;
 
     showDialog(
       context: context,
@@ -411,7 +425,24 @@ class _TimeSlotsGridState extends State<TimeSlotsGrid> {
                                     ?.copyWith(fontWeight: FontWeight.w600),
                               ),
                               const SizedBox(height: 12),
-                              _financeRow('Общая сумма', '$totalPrice ₸'),
+                              if (discountPercent > 0) ...[
+                                _financeRow(
+                                  'Цена до скидки',
+                                  '$priceBeforeDiscount ₸',
+                                  color: Colors.grey,
+                                ),
+                                _financeRow(
+                                  'Скидка $discountPercent%',
+                                  '- $discountAmount ₸',
+                                  color: Colors.red,
+                                ),
+                                _financeRow(
+                                  'Итого со скидкой',
+                                  '$totalPrice ₸',
+                                  color: Colors.green,
+                                ),
+                              ] else
+                                _financeRow('Общая сумма', '$totalPrice ₸'),
                               _financeRow(
                                 'Предоплата',
                                 '$prepaid ₸',
@@ -892,12 +923,17 @@ class _TimeSlotsGridState extends State<TimeSlotsGrid> {
     return BlocConsumer<BookingBloc, BookingState>(
       listener: (context, state) {
         if (state is BookingAvailabilityLoaded) {
+          log('Booked slots: ${state.bookedSlots}');
+
           setState(() {
             bookedDetails.clear();
             for (var slot in state.bookedSlots) {
-              final hourStr = slot['hour'] as String;
-              final hour = int.parse(hourStr.split(':')[0]);
-              bookedDetails[hour] = slot;
+              final timeStr = slot['hour'] as String;
+              final parts = timeStr.split(':');
+              final h = int.parse(parts[0]);
+              final m = int.parse(parts[1]);
+              final slotIndex = h * 2 + (m == 30 ? 1 : 0);
+              bookedDetails[slotIndex] = slot;
             }
           });
         }
@@ -986,14 +1022,14 @@ class _TimeSlotsGridState extends State<TimeSlotsGrid> {
                   return GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    itemCount: 24,
+                    itemCount: 48,
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: crossAxisCount,
                       mainAxisSpacing: width > 600 ? 12 : 8,
                       crossAxisSpacing: width > 600 ? 12 : 8,
                       childAspectRatio: width > 600 ? 0.9 : 0.85,
                     ),
-                    itemBuilder: (_, hour) => _buildTimeSlot(hour, width),
+                    itemBuilder: (_, slot) => _buildTimeSlot(slot, width),
                   );
                 },
               ),
