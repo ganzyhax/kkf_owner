@@ -22,6 +22,8 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
   final _clientNameController = TextEditingController();
   final _clientPhoneController = TextEditingController();
   final _prepaidAmountController = TextEditingController();
+  final _discountAmountController = TextEditingController();
+
   double discountPercent = 0;
   double discountAmount = 0;
   double finalPrice = 0;
@@ -140,6 +142,7 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
       totalPrice = sum;
       discountAmount = sum * discountPercent / 100;
       finalPrice = sum - discountAmount;
+      _discountAmountController.text = discountAmount.toInt().toString();
       if (isFullyPaid) {
         _prepaidAmountController.text = finalPrice.toInt().toString();
       }
@@ -151,6 +154,8 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
     _clientNameController.dispose();
     _clientPhoneController.dispose();
     _prepaidAmountController.dispose();
+    _discountAmountController.dispose();
+
     super.dispose();
   }
 
@@ -796,43 +801,49 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
             ],
             SizedBox(height: isMobile ? 12 : 16),
 
-            Text(
-              'Скидка',
-              style: TextStyle(
-                fontSize: isMobile ? 14 : 16,
-                fontWeight: FontWeight.w600,
+            // Процент скидки
+            TextField(
+              controller: TextEditingController(
+                text: discountPercent.toInt().toString(),
               ),
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'Скидка %',
+                border: const OutlineInputBorder(),
+                suffixText: '%',
+              ),
+              onChanged: (value) {
+                final percent = double.tryParse(value) ?? 0;
+                setState(() {
+                  discountPercent = percent.clamp(0, 100);
+                  _calculateTotalPrice();
+                });
+              },
             ),
+
             const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: Slider(
-                    value: discountPercent,
-                    min: 0,
-                    max: 50,
-                    divisions: 10,
-                    label: '${discountPercent.toInt()}%',
-                    onChanged: (value) {
-                      setState(() {
-                        discountPercent = value;
-                        _calculateTotalPrice();
-                      });
-                    },
-                  ),
-                ),
-                SizedBox(
-                  width: 60,
-                  child: Text(
-                    '${discountPercent.toInt()}%',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ],
+
+            // Сумма скидки
+            TextField(
+              controller: _discountAmountController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'Сумма скидки ₸',
+                border: const OutlineInputBorder(),
+                suffixText: '₸',
+                helperText: totalPrice > 0
+                    ? 'от суммы ${totalPrice.toInt()} ₸'
+                    : null,
+              ),
+              onChanged: (value) {
+                final amount = double.tryParse(value) ?? 0;
+                if (totalPrice > 0) {
+                  setState(() {
+                    discountPercent = (amount / totalPrice * 100).clamp(0, 100);
+                    _calculateTotalPrice();
+                  });
+                }
+              },
             ),
             SizedBox(height: isMobile ? 12 : 16),
 
