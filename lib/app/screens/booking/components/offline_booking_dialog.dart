@@ -467,6 +467,7 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
             selectedDate: selectedDate,
             arenaId: selectedArenaId!,
             onSelectionChanged: onSlotSelected,
+            allowPastSlots: true,
           )
         else
           Container(
@@ -522,6 +523,7 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
                   selectedDate: selectedDate,
                   arenaId: selectedArenaId!,
                   onSelectionChanged: onSlotSelected,
+                  allowPastSlots: true,
                 )
               else
                 Container(

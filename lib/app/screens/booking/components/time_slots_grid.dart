@@ -11,12 +11,14 @@ class TimeSlotsGrid extends StatefulWidget {
   final DateTime selectedDate;
   final String arenaId;
   final Function(List<int>) onSelectionChanged;
+  final bool allowPastSlots; // ← добавь
 
   const TimeSlotsGrid({
     super.key,
     required this.selectedDate,
     required this.arenaId,
     required this.onSelectionChanged,
+    this.allowPastSlots = false, // ← по умолчанию false
   });
 
   @override
@@ -58,6 +60,8 @@ class _TimeSlotsGridState extends State<TimeSlotsGrid> {
 
   // _isPastTime
   bool _isPastTime(int slot) {
+    if (widget.allowPastSlots) return false; // ← добавь
+
     final now = DateTime.now();
     final h = slot ~/ 2;
     final m = slot % 2 == 0 ? 0 : 30;
