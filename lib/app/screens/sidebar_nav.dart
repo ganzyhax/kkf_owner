@@ -6,6 +6,7 @@ import 'package:kff_owner_admin/app/screens/booking/booking_page.dart';
 import 'package:kff_owner_admin/app/screens/finance/finance_screen.dart';
 import 'package:kff_owner_admin/app/screens/my_arena/my_arena_screen.dart';
 import 'package:kff_owner_admin/app/screens/review/review_screen.dart';
+import 'package:kff_owner_admin/app/screens/services/service_dashboard_screen.dart';
 import 'package:kff_owner_admin/app/utils/local_utils.dart';
 import 'dashboard/dashboard_screen.dart';
 
@@ -73,6 +74,8 @@ class _OwnerLayoutState extends State<OwnerLayout> {
         return BookingPage();
       case 'finance':
         return FinanceDashboard();
+      case 'services':
+        return const ServiceDashboardScreen();
       case 'feedback':
         return ReviewScreen();
       default:
@@ -164,6 +167,7 @@ class _OwnerSidebar extends StatelessWidget {
                     'Финансы',
                     'finance',
                   ),
+                  _buildNavItem(Icons.spa, 'Услуги', 'services'),
                   _buildNavItem(Icons.comment, 'Отзывы и Рейтинг', 'feedback'),
                 ],
               ),
