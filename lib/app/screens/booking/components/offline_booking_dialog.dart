@@ -171,10 +171,10 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
         return;
       }
 
-      if (selectedHours.length < 4) {
+      if (selectedHours.length < 2) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Выберите минимум 2 часа'),
+            content: Text('Выберите минимум 1 часа'),
             backgroundColor: Colors.red,
           ),
         );
@@ -255,7 +255,7 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final canBook = selectedHours.length >= 4 && selectedArenaId != null;
+    final canBook = selectedHours.length >= 2 && selectedArenaId != null;
     final screenSize = MediaQuery.of(context).size;
     final screenWidth = screenSize.width;
     final screenHeight = screenSize.height;
@@ -565,12 +565,12 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
     return Container(
       padding: EdgeInsets.all(isMobile ? 16 : 20),
       decoration: BoxDecoration(
-        color: selectedHours.length >= 4
+        color: selectedHours.length >= 2
             ? Colors.green.shade50
             : Colors.orange.shade50,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: selectedHours.length >= 4
+          color: selectedHours.length >= 2
               ? Colors.green.shade200
               : Colors.orange.shade200,
         ),
@@ -581,8 +581,8 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
           Row(
             children: [
               Icon(
-                selectedHours.length >= 4 ? Icons.check_circle : Icons.warning,
-                color: selectedHours.length >= 4 ? Colors.green : Colors.orange,
+                selectedHours.length >= 2 ? Icons.check_circle : Icons.warning,
+                color: selectedHours.length >= 2 ? Colors.green : Colors.orange,
                 size: isMobile ? 20 : 24,
               ),
               SizedBox(width: isMobile ? 8 : 12),
@@ -597,9 +597,9 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
                         fontSize: isMobile ? 14 : 16,
                       ),
                     ),
-                    if (selectedHours.length < 4)
+                    if (selectedHours.length < 2)
                       Text(
-                        'Минимум 2 часа',
+                        'Минимум 1 часа',
                         style: TextStyle(
                           color: Colors.orange,
                           fontSize: isMobile ? 11 : 12,
@@ -613,7 +613,7 @@ class _OfflineBookingDialogState extends State<OfflineBookingDialog> {
                 style: TextStyle(
                   fontSize: isMobile ? 20 : 24,
                   fontWeight: FontWeight.bold,
-                  color: selectedHours.length >= 4
+                  color: selectedHours.length >= 2
                       ? Colors.green
                       : Colors.orange,
                 ),
